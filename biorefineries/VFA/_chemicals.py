@@ -109,4 +109,12 @@ def get_grouped_chemicals(stream, units='kmol/hr'):
 
 # %% Finalize and compile the chemicals
 chems.compile()
+# =============================================================================
+chems.set_synonym('H2O', 'Water')
+chems.set_synonym('H2SO4', 'SulfuricAcid')
+chems.set_synonym('NaOH', 'SodiumHydroxide')
+chems.set_synonym('CO2', 'CarbonDioxide')
+chems.set_synonym('CO', 'CarbonMonoxide')
+chems.set_synonym('O2', 'Oxygen')
+# %% Finalize and compile the chemicals
 tmo.settings.set_thermo(chems)
