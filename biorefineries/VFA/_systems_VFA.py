@@ -17,7 +17,7 @@ from biorefineries.VFA import _chemicals
 from biorefineries.VFA import _units
 from biorefineries.VFA._chemicals import chems, chemical_groups, get_grouped_chemicals
 from biorefineries.VFA._units import UASB, ED
-
+from biorefineries.cornstover import CellulosicEthanolTEA as TemplateTEA
 # # Create and compile chemicals
 # chems = tmo.Chemicals([])
 
@@ -75,7 +75,7 @@ VFA_sys.diagram()
 # ---------------------------
 # TEA 객체 생성
 # ---------------------------
-template_tea = TEA(
+template_tea = TemplateTEA(
     system=VFA_sys,
     IRR=0.10,
     duration=(2016, 2046),
@@ -91,12 +91,31 @@ template_tea = TEA(
     finance_interest=0.08,
     finance_years=10,
     finance_fraction=0.4,
-    OSBL_units=[],
-    labor_cost=1e6,  # 예시 비용
+    labor_cost=1e6,  # Example cost
     labor_burden=0.9,
     property_insurance=0.007,
     maintenance=0.03,
 )
+#%%
+# ---------------------------
+# Simulation and Results
+# ---------------------------
+
+def simulate_and_calculate():
+    # Simulate the system
+    VFA_sys.simulate()
+
+    # Calculate CAPEX and OPEX
+    CAPEX = template_tea.FCI  # Fixed Capital Investment
+    OPEX = template_tea.AOC  # Annual Operating Cost excluding depreciation
+
+    # Print results
+    print("\n----- Economic Results -----")
+    print(f"CAPEX (Fixed Capital Investment): ${CAPEX:,.2f}")
+    print(f"OPEX (Annual Operating Cost): ${OPEX:,.2f}")
+    print("----------------------------\n")
+
+simulate_and_calculate()
 #%%
 # ---------------------------
 # 시뮬레이션 실행 함수

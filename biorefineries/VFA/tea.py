@@ -17,5 +17,4 @@ This module is a modified implementation of modules from the following:
 """
 
 from biorefineries.cornstover import CellulosicEthanolTEA as TemplateTEA
-from 
 #!!! Any necessary changes to the imported TEA class should be made here
