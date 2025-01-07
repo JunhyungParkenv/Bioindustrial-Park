@@ -55,7 +55,7 @@ eff_ac = bst.Stream('eff_ac')
 
 F = 96485.3
 
-class ED_vfa(bst.Unit):
+class ED(bst.Unit):
     _N_ins = 2
     _N_outs = 2
 # R=39.75, A=0.0016m2
@@ -184,7 +184,7 @@ class ED_vfa(bst.Unit):
         self.baseline_purchase_costs['AC Tank'] = self.ac_storage.baseline_purchase_costs['Tank']
 #%% Create ED_vfa unit
 # Example usage
-ED1 = ED_vfa(
+ED1 = ED(
     ID='ED_with_storage',
     ins=[inf_dc, inf_ac],
     outs=[eff_dc, eff_ac],

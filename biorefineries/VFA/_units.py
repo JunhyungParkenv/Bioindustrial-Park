@@ -176,7 +176,7 @@ F = 96485.3
 @cost('Membrane area', 'Coating Solution', cost=0.057282, S=1, CE=567.3, n=1, BM=1.1)
 @cost('Membrane area', 'Frames', cost=2, S=1, CE=567.3, n=1, BM=1.1)
 @cost('Membrane area', 'Power supply', cost=20, S=1, CE=567.3, n=1, BM=1.3)
-class ED_vfa(bst.Unit):
+class ED(bst.Unit):
     _N_ins = 2
     _N_outs = 2
 
