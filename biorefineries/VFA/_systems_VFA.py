@@ -9,7 +9,7 @@ Created on Thu Nov 21 21:30:14 2024
 
 import biosteam as bst
 import thermosteam as tmo
-from biosteam import units, Stream, SystemFactory
+from biosteam import Stream, SystemFactory
 from biosteam.process_tools import SystemFactory
 from biosteam import main_flowsheet
 from biorefineries.cellulosic import units
@@ -34,38 +34,85 @@ from biorefineries.cornstover import CellulosicEthanolTEA as TemplateTEA
 # # Append chemicals to the `chems` object
 # chems.extend([H2O, Glucose, LacticAcid, ButyricAcid, PropionicAcid, AceticAcid, ValericAcid, CO2])
 # chems.compile()
-tmo.settings.set_thermo(chems)
 
 # # Add synonyms for easier referencing
 # chems.set_synonym('H2O', 'Water')
 
-# Define the system
+# Thermodynamic properties
+tmo.settings.set_thermo(chems)
+flowsheet = main_flowsheet
+flowsheet.clear()
+flowsheet.set_flowsheet(bst.Flowsheet('VFA_Recovery'))
+
+# %% System Definition
+
 @SystemFactory(
     ID='VFA_sys',
-    ins=[dict(ID='feedstock', units='kg/hr')],  # Input stream
+    ins=[
+        dict(ID='feedstock', units='kg/hr')
+    ],
     outs=[
-        dict(ID='separated_vfa', units='kg/hr'),  # Output VFA
-        dict(ID='diluted_vfa', units='kg/hr')   # Spent stream
+        dict(ID='separated_vfa', units='kg/hr'),
+        dict(ID='spent_stream', units='kg/hr')
     ]
 )
 def create_VFA_sys(ins, outs):
-    # Define input and output streams
+    """
+    VFA Recovery System: Anaerobic digestion and Electrodialysis-based separation
+    """
+    # Define Input and Output Streams
     feedstock = ins[0]
     separated_vfa, spent_stream = outs
 
-    # Initialize the input feedstock stream
+    # Feedstock initialization
     feedstock.imol['Water'] = 8751.4
     feedstock.imol['Glucose'] = 17632.44
     feedstock.price = 0.1
 
-    # Define units
-    # UASB fermentation
+    # --- 1. Anaerobic Digestion (UASB Reactor) ---
     R101 = UASB('R101', ins=feedstock, outs=('biogas', 'vfa_solution'))
+    
+    # --- 2. Solid-Liquid Separation ---
+    U302 = _units.CellMassFilter('U302', 
+                          ins=R101-1, 
+                          outs=('U302_cell_mass', 'U302_to_WWT'),
+                          moisture_content=0.35, 
+                          split=0.99)
+    
+    # --- 3. Electrodialysis Separation ---
+    S401 = ED('S401', ins=U302-1, outs=(separated_vfa, spent_stream))
+    
+    # --- 4. Evaporation ---
+    E101 = bst.bstMultiEffectEvaporator('E101', 
+                                 ins=S401-0,
+                                 outs=('concentrated_vfa', 'evaporated_water'),
+                                 V=0.1, 
+                                 V_definition='First-effect',
+                                 P=(101325, 73581, 50892, 32777))
+    
+    # --- 5. Crystallization ---
+    S201 = bst.BatchCrystallizer('S201', 
+                             ins=E101-0, 
+                             outs=('solid_vfa', 'mother_liquor'))
+    
+    # --- 6. Storage ---
+    T101 = bst.StorageTank('T101', ins=S201-0, outs='stored_vfa', tau=7*24)
+    
+    # --- Connections ---
+    T101-0-1-S401  # Recycle stream to ED for optimization
+    
+    return [R101, U302, S401, E101, S201, T101]
 
-    # ED separation
-    S101 = ED('S101', ins=R101-1, outs=(separated_vfa, spent_stream))
+# %% Diagram and Summary
 
-    return [R101, S101]
+if __name__ == '__main__':
+    vfa_sys = create_VFA_sys()
+    vfa_sys.simulate()
+    vfa_sys.diagram('thorough')
+
+    # System Summary
+    vfa_sys.show()
+    bst.report()
 
 #%%
 # VFA 시스템 생성

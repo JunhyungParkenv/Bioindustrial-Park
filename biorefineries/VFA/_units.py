@@ -114,7 +114,60 @@ class UASB(Unit):
 # =============================================================================
 # Separation
 # =============================================================================
-# ED
+# Filter to separate fermentation broth into products liquid and solid
+@cost(basis='Solids flow rate', ID='Feed tank', units='kg/hr',
+      cost=174800, S=31815, CE=CEPCI[2010], n=0.7, BM=2.0)
+@cost(basis='Solids flow rate', ID='Feed pump', units='kg/hr',
+      kW=74.57, cost=18173, S=31815, CE=CEPCI[2010], n=0.8, BM=2.3)
+@cost(basis='Pressing air flow rate', ID='Filter pressing compressor', units='kg/hr',
+      kW=111.855, cost=75200, S=808, CE=CEPCI[2009], n=0.6, BM=1.6)
+@cost(basis='Solids flow rate', ID='Pressing air compressor reciever', units='kg/hr',
+      cost=8000, S=31815, CE=CEPCI[2010], n=0.7, BM=3.1)
+@cost(basis='Drying air flow rate', ID='Filter drying compressor', units='kg/hr',
+      kW=1043.98, cost=405000, S=12233, CE=CEPCI[2009], n=0.6, BM=1.6)
+@cost(basis='Solids flow rate', ID='Dry air compressor reciever', units='kg/hr',
+      cost=17000, S=31815, CE=CEPCI[2010], n=0.7, BM=3.1)
+@cost(basis='Solids flow rate', ID='Pressure filter', units='kg/hr',
+      cost=3294700, S=31815, CE=CEPCI[2010], n=0.8, BM=1.7)
+@cost(basis='Solids flow rate', ID='Filtrate discharge pump', units='kg/hr',
+      # Power not specified, based on filtrate tank discharge pump
+      kW=55.9275, cost=13040, S=31815, CE=CEPCI[2010], n=0.8, BM=2.3)
+@cost(basis='Solids flow rate', ID='Filtrate tank', units='kg/hr',
+      cost=103000, S=31815, CE=CEPCI[2010], n=0.7, BM=2.0)
+@cost(basis='Filtrate flow rate', ID='Flitrate tank agitator', units='kg/hr',
+      kW=5.59275, cost=26000,  S=337439, CE=CEPCI[2009], n=0.5, BM=1.5)
+@cost(basis='Solids flow rate', ID='Filtrate tank discharge pump', units='kg/hr',
+      kW=55.9275, cost=13040, S=31815, CE=CEPCI[2010], n=0.8, BM=2.3)
+@cost(basis='Solids flow rate', ID='Cell mass wet cake conveyor', units='kg/hr',
+      kW=7.457, cost=70000, S=28630, CE=CEPCI[2009], n=0.8, BM=1.7)
+@cost(basis='Solids flow rate', ID='Cell mass wet cake screw',  units='kg/hr',
+      kW=11.1855, cost=20000, S=28630, CE=CEPCI[2009], n=0.8, BM=1.7)
+@cost(basis='Solids flow rate', ID='Recycled water tank', units='kg/hr',
+      cost=1520,  S=31815, CE=CEPCI[2010], n=0.7, BM=3.0)
+@cost(basis='Solids flow rate', ID='Manifold flush pump', units='kg/hr',
+      kW=74.57, cost=17057, S=31815, CE=CEPCI[2010], n=0.8, BM=2.3)
+@cost(basis='Solids flow rate', ID='Cloth wash pump', units='kg/hr',
+      kW=111.855,cost=29154, S=31815, CE=CEPCI[2010], n=0.8, BM=2.3)
+class CellMassFilter(SolidsSeparator):
+    _N_ins = 1
+    _units= {'Solids flow rate': 'kg/hr',
+             'Pressing air flow rate': 'kg/hr',
+             'Drying air flow rate': 'kg/hr',
+             'Filtrate flow rate': 'kg/hr'}
+
+    def _design(self):
+        Design = self.design_results
+        # 809 is the scaling basis of equipment M-505,
+        # 391501 from stream 508 in ref [1]
+        Design['Pressing air flow rate'] = 809/391501 * self.ins[0].F_mass
+        # 12105 and 391501 from streams 559 and 508 in ref [1]
+        Design['Drying air flow rate'] = 12105/391501 * self.ins[0].F_mass
+        Design['Solids flow rate'] = self.outs[0].F_mass
+        Design['Filtrate flow rate'] = self.outs[1].F_mass
+
+# MultiEffectEvaporator (MEE)
+
+# Electrodialysis (ED)
 F = 96485.3
 
 @cost('Membrane area', 'CEM', cost=100, S=1, CE=567.3, n=1, BM=2)
@@ -123,85 +176,82 @@ F = 96485.3
 @cost('Membrane area', 'Coating Solution', cost=0.057282, S=1, CE=567.3, n=1, BM=1.1)
 @cost('Membrane area', 'Frames', cost=2, S=1, CE=567.3, n=1, BM=1.1)
 @cost('Membrane area', 'Power supply', cost=20, S=1, CE=567.3, n=1, BM=1.3)
-class ED(bst.Unit):
+class ED_vfa(bst.Unit):
     _N_ins = 2
     _N_outs = 2
 
-    def __init__(self, ID='', ins=None, outs=None, thermo=None, CE_dict=None, I=0.020092, 
-                 A_m=None, R=39.75, z_T=1.0, t=24*3600, target_ratio=0.8):
+    def __init__(self, ID='', ins=None, outs=None, thermo=None, CE_dict=None, j=5.058, 
+                 A_m=None, R=0.0000222, z_T=1.0, t=24*3600, dc_tau=24, target_ratio=0.8):
         super().__init__(ID, ins, outs, thermo=thermo)
-        # Exp : Assume C2 = 0.164472, C3 = 0.082236, C4 = 0.059, Assume C5 = 0.063118, C6 = 0.044
         self.CE_dict = CE_dict or {
             'AceticAcid': 0.164472, 'PropionicAcid': 0.082236, 'ButyricAcid': 0.059,
             'ValericAcid': 0.063118, 'LacticAcid': 0.082236
         }
-        self.I = I           # Total current [A]
-        self.A_m = A_m if A_m is not None else 1.0  # Default membrane area [m²] if not provided
-        self.R = R           # System resistance [Ohm]
-        self.z_T = z_T       # Charge number
-        self.t = t           # Time in seconds for target concentration
-        self.target_ratio = target_ratio  # Ratio of initial concentration to be reached
-        
-    def calculate_flux(self):
-        # 각 이온의 플럭스를 전류에 따라 계산 (LacticAcid 제외)
-        J_T_dict = {}
-        for ion, CE in self.CE_dict.items():
-            if ion != 'LacticAcid':  # LacticAcid는 플럭스 계산에서 제외
-                J_T_dict[ion] = (CE * self.I) / (self.z_T * F * self.A_m)
+        self.j = j
+        self.A_m = A_m if A_m is not None else 1.0
+        self.R = R
+        self.z_T = z_T
+        self.t = t
+        self.target_ratio = target_ratio
+        self.dc_tau = dc_tau
+
+        self.dc_storage = bst.StorageTank('DC_Tank', tau=dc_tau)
+        self.ac_storage = bst.StorageTank('AC_Tank', tau=dc_tau / 4)
+
+    def calculate_flux(self, I):
+        J_T_dict = {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
         return J_T_dict
 
     def calculate_membrane_area(self, total_moles_to_transfer, total_flux):
-        # 필요한 막 면적 계산
         A_m = total_moles_to_transfer / (total_flux * self.t)
         return A_m
+    
+    def calculate_tank_volumes(self, Q_dc, HRT, ratio_ac_to_dc=0.2/0.8):
+        V_dc = Q_dc * HRT
+        V_ac = V_dc * ratio_ac_to_dc
+        return {'V_dc': V_dc, 'V_ac': V_ac}
 
     def _run(self):
         inf_dc, inf_ac = self.ins
         eff_dc, eff_ac = self.outs
 
-        # 희석 compartment의 유량
-        Q_dc = inf_dc.F_vol
-
-        # 초기 총 VFA 양 (LacticAcid 제외)
         total_initial_vfa = sum(inf_dc.imol[ion] * 1e3 for ion in self.CE_dict if ion != 'LacticAcid')
-
-        # 이동시킬 총 VFA 양 (80% 목표)
         total_vfa_to_transfer = total_initial_vfa * self.target_ratio
 
-        # 각 이온의 플럭스 계산
-        J_T_dict = self.calculate_flux()
-
-        # 총 플럭스 계산
+        I = self.j * self.A_m
+        J_T_dict = self.calculate_flux(I)
         total_flux = sum(J_T_dict.values())
-
-        # 필요한 막 면적 계산
         self.A_m = self.calculate_membrane_area(total_vfa_to_transfer, total_flux)
-        print(f"Calculated membrane area: {self.A_m:.2f} m²")
 
-        # 막 면적이 변경되었으므로 플럭스 재계산
-        J_T_dict = self.calculate_flux()
-
-        # 각 이온별 이동량 계산 및 업데이트
-        total_transferred_vfa = 0  # 실제로 이동된 총 VFA 양
+        I = self.j * self.A_m
+        J_T_dict = self.calculate_flux(I)
+        
         for ion in self.CE_dict:
-            # 각 이온의 이동량 계산
-            n_transferred = J_T_dict.get(ion, 0) * self.A_m * self.t
+            n_transferred = J_T_dict[ion] * self.A_m * self.t
             available_amount = inf_dc.imol[ion] * 1e3
             actual_transfer = min(n_transferred, available_amount)
-            
+                
             eff_ac.imol[ion] = (inf_ac.imol[ion] * 1e3 + actual_transfer) / 1e3
             eff_dc.imol[ion] = (inf_dc.imol[ion] * 1e3 - actual_transfer) / 1e3
-            
-            if ion != 'LacticAcid':  # LacticAcid는 총 VFA 계산에 포함하지 않음
-                total_transferred_vfa += actual_transfer
 
-        # 물의 양 유지
         eff_dc.imol['Water'] = inf_dc.imol['Water']
         eff_ac.imol['Water'] = inf_ac.imol['Water']
+
+        self.dc_storage.ins[:] = [eff_dc]
+        self.dc_storage.outs[:] = [eff_dc]
+        self.ac_storage.ins[:] = [eff_ac]
+        self.ac_storage.outs[:] = [eff_ac]
+
+        self.dc_storage.simulate()
+        self.ac_storage.simulate()
         
+        self.outs[0] = self.dc_storage.outs[0]
+        self.outs[1] = self.ac_storage.outs[0]
+
     _units = {
         'Membrane area': 'm^2',
-        'Tank volume': 'm^3',
+        'DC Tank Volume': 'm^3',
+        'AC Tank Volume': 'm^3',
         'System resistance': 'Ohm',
         'System voltage': 'V',
         'Power consumption': 'W',
@@ -210,22 +260,13 @@ class ED(bst.Unit):
     
     def _design(self):
         D = self.design_results
-        # Store membrane area, current, resistance, and power calculations
         D['Membrane area'] = self.A_m
-        D['Total current'] = self.I
+        D['Total current'] = self.j * self.A_m
         D['System resistance'] = self.R
         D['System voltage'] = D['Total current'] * self.R
         D['Power consumption'] = D['System voltage'] * D['Total current']
-
-    def _cost(self):
-        D = self.design_results
-        self.baseline_purchase_costs['CEM'] = 2 * 100 * D['Membrane area']
-        self.baseline_purchase_costs['NF'] = 30 * self.design_results['Membrane area']
-        self.baseline_purchase_costs['Current Collector'] = 20 * self.design_results['Membrane area']
-        self.baseline_purchase_costs['Coating Solution'] = 0.057282 * self.design_results['Membrane area']
-        self.baseline_purchase_costs['Frames'] = 2 * self.design_results['Membrane area']
-        self.baseline_purchase_costs['Power supply'] = 20 * D['Membrane area']
-        self.power_utility.consumption = D['Power consumption'] / 1000  # Convert to kW
+        
+#%% Crystallization (BatchCrystallizer)
 #%%
 # =============================================================================
 # Wastewater treatment

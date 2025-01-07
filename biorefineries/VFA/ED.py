@@ -58,28 +58,27 @@ F = 96485.3
 class ED_vfa(bst.Unit):
     _N_ins = 2
     _N_outs = 2
-
-    def __init__(self, ID='', ins=None, outs=None, thermo=None, CE_dict=None, I=5.0, 
-                 A_m=None, R=39.75, z_T=1.0, t=24*3600, target_ratio=0.8):
+# R=39.75, A=0.0016m2
+    def __init__(self, ID='', ins=None, outs=None, thermo=None, CE_dict=None, j=5.058, 
+                 A_m=None, R=0.0000222, z_T=1.0, t=24*3600, target_ratio=0.8):
         super().__init__(ID, ins, outs, thermo=thermo)
-        # Exp : Assume C2 = 0.164472, C3 = 0.082236, C4 = 0.059, Assume C5 = 0.063118, C6 = 0.044
         self.CE_dict = CE_dict or {
             'AceticAcid': 0.164472, 'PropionicAcid': 0.082236, 'ButyricAcid': 0.059,
             'ValericAcid': 0.063118, 'LacticAcid': 0.082236
         }
-        self.I = I           # Total current [A]
+        self.j = j           # Current density [A/m²]
         self.A_m = A_m if A_m is not None else 1.0  # Default membrane area [m²] if not provided
         self.R = R           # System resistance [Ohm]
         self.z_T = z_T       # Charge number
-        self.t = t           # Time in seconds for target concentration
+        self.t = t           # Time in hours for target concentration
         self.target_ratio = target_ratio  # Ratio of initial concentration to be reached
 
-    def calculate_flux(self):
+    def calculate_flux(self, I):
         # 각 이온의 플럭스를 전류에 따라 계산 (LacticAcid 제외)
         J_T_dict = {}
         for ion, CE in self.CE_dict.items():
             if ion != 'LacticAcid':  # LacticAcid는 플럭스 계산에서 제외
-                J_T_dict[ion] = (CE * self.I) / (self.z_T * F * self.A_m)
+                J_T_dict[ion] = (CE * I) / (self.z_T * F * self.A_m)
         return J_T_dict
 
     def calculate_membrane_area(self, total_moles_to_transfer, total_flux):
@@ -100,8 +99,11 @@ class ED_vfa(bst.Unit):
         # 이동시킬 총 VFA 양 (80% 목표)
         total_vfa_to_transfer = total_initial_vfa * self.target_ratio
 
+        # 전류 계산
+        I = self.j * self.A_m
+
         # 각 이온의 플럭스 계산
-        J_T_dict = self.calculate_flux()
+        J_T_dict = self.calculate_flux(I)
 
         # 총 플럭스 계산
         total_flux = sum(J_T_dict.values())
@@ -110,8 +112,9 @@ class ED_vfa(bst.Unit):
         self.A_m = self.calculate_membrane_area(total_vfa_to_transfer, total_flux)
         print(f"Calculated membrane area: {self.A_m:.2f} m²")
 
-        # 막 면적이 변경되었으므로 플럭스 재계산
-        J_T_dict = self.calculate_flux()
+        # 막 면적이 변경되었으므로 전류 및 플럭스 재계산
+        I = self.j * self.A_m
+        J_T_dict = self.calculate_flux(I)
 
         # 각 이온별 이동량 계산 및 업데이트
         total_transferred_vfa = 0  # 실제로 이동된 총 VFA 양
@@ -132,31 +135,31 @@ class ED_vfa(bst.Unit):
         eff_ac.imol['Water'] = inf_ac.imol['Water']
         
     _units = {
-        'Membrane area': 'm^2',
-        'Tank volume': 'm^3',
-        'System resistance': 'Ohm',
-        'System voltage': 'V',
-        'Power consumption': 'W',
-        'Total current': 'A',
+        'Membrane area': 'm^2',  # Units for membrane area
+        'Tank volume': 'm^3',  # Units for tank volume
+        'System resistance': 'Ohm',  # Units for system resistance
+        'System voltage': 'V',  # Units for system voltage
+        'Power consumption': 'W',  # Units for power consumption
+        'Total current': 'A',  # Units for total current
     }
     
     def _design(self):
         D = self.design_results
         # Store membrane area, current, resistance, and power calculations
         D['Membrane area'] = self.A_m
-        D['Total current'] = self.I
+        D['Total current'] = self.j * self.A_m
         D['System resistance'] = self.R
         D['System voltage'] = D['Total current'] * self.R
         D['Power consumption'] = D['System voltage'] * D['Total current']
 
     def _cost(self):
         D = self.design_results
-        self.baseline_purchase_costs['CEM'] = 2 * 100 * D['Membrane area']
+        self.baseline_purchase_costs['CEM'] = 2 * 100 * D['Membrane area']  # $100 per m² of membrane
         self.baseline_purchase_costs['NF'] = 30 * self.design_results['Membrane area']
         self.baseline_purchase_costs['Current Collector'] = 20 * self.design_results['Membrane area']
         self.baseline_purchase_costs['Coating Solution'] = 0.057282 * self.design_results['Membrane area']
         self.baseline_purchase_costs['Frames'] = 2 * self.design_results['Membrane area']
-        self.baseline_purchase_costs['Power supply'] = 20 * D['Membrane area']
+        self.baseline_purchase_costs['Power supply'] = 20 * D['Membrane area']  # $20 per m²
         self.power_utility.consumption = D['Power consumption'] / 1000  # Convert to kW
 
 #%% Create ED_vfa unit
@@ -164,7 +167,7 @@ ED1 = ED_vfa(
     ID='ED1',
     ins=[inf_dc, inf_ac],
     outs=[eff_dc, eff_ac],
-    I=0.020092,  # Current [A]
+    j=11.375, #11.375
     t=24*3600,  # Target concentration over 24 hours
     target_ratio=0.8  # Reach 80% of the initial concentration
 )
