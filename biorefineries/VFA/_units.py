@@ -223,16 +223,27 @@ class ED(bst.Unit):
         eff_dc, eff_ac = self.outs
     
         # 입력 스트림 확인
-        print(f"inf_dc: {inf_dc}")
-        print(f"inf_ac: {inf_ac}")
+        print("inf_dc contents:")
+        print(inf_dc.show())
+        print("inf_ac contents:")
+        print(inf_ac.show())
     
         # 총 VFA 계산
         total_initial_vfa = sum(inf_dc.imol[ion] * 1e3 for ion in self.CE_dict if ion != 'LacticAcid')
+    
+        if total_initial_vfa <= 0:
+            raise ValueError(f"{self.ID}: `inf_dc` contains no valid VFAs for transfer.")
+    
+        if self.target_ratio <= 0 or self.target_ratio > 1:
+            raise ValueError(f"{self.ID}: Target ratio must be between 0 and 1.")
+    
         total_vfa_to_transfer = total_initial_vfa * self.target_ratio
+    
+        print(f"Total initial VFA: {total_initial_vfa} mmol, Target transfer: {total_vfa_to_transfer} mmol")
     
         if total_vfa_to_transfer <= 0:
             raise ValueError(f"{self.ID}: Target ratio leads to invalid VFA transfer calculation.")
-        
+    
         # 전류 계산
         I = self.j * self.A_m
         if I <= 0:
