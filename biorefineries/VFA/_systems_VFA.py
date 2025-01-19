@@ -54,6 +54,9 @@ feedstock = Stream(
     units='kg/hr',
     price=0.1  # Example price
 )
+
+feedstock.imol['Water'] = 154570.91 / chems.Water.MW  # kg -> kmol
+feedstock.imol['Glucose'] = 3154.51 / chems.Glucose.MW  # kg -> kmol
 # %% System Definition
 
 @SystemFactory(
@@ -78,6 +81,10 @@ def create_VFA_sys(ins, outs):
     # --- 1. Anaerobic Digestion (UASB Reactor) ---
     R101 = _units.UASB('R101', ins=feedstock, outs=('biogas', 'vfa_solution'))
     
+    print("R101 outputs:")
+    print(f"Biogas: {R101.outs[0].show()}")
+    print(f"VFA solution: {R101.outs[1].show()}")
+    
     # --- 2. Solid-Liquid Separation ---
     U302 = _units.CellMassFilter(
         'U302',
@@ -87,6 +94,10 @@ def create_VFA_sys(ins, outs):
         split=0.01
     )
     
+    print("U302 outputs:")
+    print(f"Cell mass: {U302.outs[0].show()}")
+    print(f"VFA filtered: {U302.outs[1].show()}")
+    
     # --- 2.1 Split into inf_dc and inf_ac using Splitter ---
     S302 = bst.Splitter(
         'S302',
@@ -95,9 +106,9 @@ def create_VFA_sys(ins, outs):
         split=0.8  # 80%는 inf_dc, 20%는 inf_ac로 분배
     )
     
-    # 확인
-    print("inf_dc:", S302.outs[0])
-    print("inf_ac:", S302.outs[1])
+    print("S302 outputs:")
+    print(f"inf_dc: {S302.outs[0].show()}")
+    print(f"inf_ac: {S302.outs[1].show()}")
 
     # --- 3. Electrodialysis Separation ---
     S401 = _units.ED(
@@ -111,8 +122,9 @@ def create_VFA_sys(ins, outs):
     )
     
     # 출력 스트림 확인
-    print("S401 outs:", S401.outs)
-    print("waste_stream:", waste_stream)
+    print("S401 outputs:")
+    print(f"VFA concentrate: {S401.outs[0].show()}")
+    print(f"Waste stream: {S401.outs[1].show()}")
     
     # --- 4. Evaporation ---
     E101 = bst.MultiEffectEvaporator(

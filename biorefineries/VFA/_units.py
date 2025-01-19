@@ -74,12 +74,21 @@ class UASB(Unit):
         feed = self.ins[0]
         vfa, biogas = self.outs
 
+        print("Feed contents before reaction:")
+        print(feed.show())
+        
         # Copy input stream to effluent
         effluent = feed.copy()
-
+        
+        print("Effluent contents before reaction:")
+        print(effluent.show())
+        
         # Run the cofermentation reactions
         self.cofermentation_rxns(effluent.mol)
-
+        
+        print("Effluent contents after reaction:")
+        print(effluent.show())
+        
         # Assign effluent to the volatile fatty acids (VFAs) output
         vfa.copy_like(effluent)
 
