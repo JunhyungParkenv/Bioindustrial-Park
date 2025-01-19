@@ -16,7 +16,6 @@ from biorefineries.cellulosic import units
 from biorefineries.VFA import _chemicals
 from biorefineries.VFA import _units
 from biorefineries.VFA._chemicals import chems, chemical_groups, get_grouped_chemicals
-from biorefineries.VFA._units import UASB, ED
 from biorefineries.cornstover import CellulosicEthanolTEA as TemplateTEA
 # # Create and compile chemicals
 # chems = tmo.Chemicals([])
@@ -44,17 +43,24 @@ flowsheet = main_flowsheet
 flowsheet.clear()
 flowsheet.set_flowsheet(bst.Flowsheet('VFA_Recovery'))
 
+# %% Feedstock Stream Definition
+# Feedstock stream 수정
+feedstock = Stream(
+    'feedstock',
+    Water=154570.91,  # 물의 질량 흐름 (kg/hr)
+    Glucose=3154.51,  # Glucose의 질량 흐름 (kg/hr)
+    # FermMicrobe=8.,Lignin = 5., 
+    # SolubleLignin = 10., GlucoseOligomer = 5.,
+    units='kg/hr',
+    price=0.1  # Example price
+)
 # %% System Definition
 
 @SystemFactory(
     ID='VFA_sys',
-    ins=[
-        dict(ID='feedstock', units='kg/hr')
-    ],
-    outs=[
-        dict(ID='separated_vfa', units='kg/hr'),
-        dict(ID='spent_stream', units='kg/hr')
-    ]
+    ins=[dict(ID='feedstock', units='kg/hr')],
+    outs=[dict(ID='stored_vfa', units='kg/hr'),
+          dict(ID='waste_stream', units='kg/hr')]
 )
 def create_VFA_sys(ins, outs):
     """
@@ -62,65 +68,97 @@ def create_VFA_sys(ins, outs):
     """
     # Define Input and Output Streams
     feedstock = ins[0]
-    separated_vfa, spent_stream = outs
+    stored_vfa, waste_stream = outs
 
-    # Feedstock initialization
-    feedstock.imol['Water'] = 8751.4
-    feedstock.imol['Glucose'] = 17632.44
-    feedstock.price = 0.1
+    # # Feedstock initialization
+    # feedstock.imol['Water'] = 8751.4
+    # feedstock.imol['Glucose'] = 17632.44
+    # feedstock.price = 0.1
 
     # --- 1. Anaerobic Digestion (UASB Reactor) ---
-    R101 = UASB('R101', ins=feedstock, outs=('biogas', 'vfa_solution'))
+    R101 = _units.UASB('R101', ins=feedstock, outs=('biogas', 'vfa_solution'))
     
     # --- 2. Solid-Liquid Separation ---
-    U302 = _units.CellMassFilter('U302', 
-                          ins=R101-1, 
-                          outs=('U302_cell_mass', 'U302_to_WWT'),
-                          moisture_content=0.35, 
-                          split=0.99)
+    U302 = _units.CellMassFilter(
+        'U302',
+        ins=R101-1,
+        outs=('U302_cell_mass', 'vfa_filtered'),
+        moisture_content=0.99,
+        split=0.01
+    )
     
+    # --- 2.1 Split into inf_dc and inf_ac using Splitter ---
+    S302 = bst.Splitter(
+        'S302',
+        ins=U302-1,  # vfa_filtered
+        outs=('inf_dc', 'inf_ac'),
+        split=0.8  # 80%는 inf_dc, 20%는 inf_ac로 분배
+    )
+    
+    # 확인
+    print("inf_dc:", S302.outs[0])
+    print("inf_ac:", S302.outs[1])
+
     # --- 3. Electrodialysis Separation ---
-    S401 = ED('S401', ins=U302-1, outs=(separated_vfa, spent_stream))
+    S401 = _units.ED(
+        'S401',
+        ins=(S302-1, S302-0),  # inf_dc, inf_ac
+        outs=('vfa_concentrate', waste_stream),
+        j=11.375,          # 전류 밀도 [A/m²]
+        t=24*3600,         # 시간 [초]
+        target_ratio=0.8,  # 목표 농도 비율
+        dc_tau=24          # DC 탱크 체류 시간 [hr]
+    )
+    
+    # 출력 스트림 확인
+    print("S401 outs:", S401.outs)
+    print("waste_stream:", waste_stream)
     
     # --- 4. Evaporation ---
-    E101 = bst.bstMultiEffectEvaporator('E101', 
-                                 ins=S401-0,
-                                 outs=('concentrated_vfa', 'evaporated_water'),
-                                 V=0.1, 
-                                 V_definition='First-effect',
-                                 P=(101325, 73581, 50892, 32777))
+    E101 = bst.MultiEffectEvaporator(
+        'E101', 
+        ins=S401-0,
+        outs=('vfa_evaporated', 'evaporated_water'),
+        V=0.1,
+        V_definition='First-effect',
+        P=(101325, 73581, 50892, 32777)
+    )
     
-    # --- 5. Crystallization ---
-    S201 = bst.BatchCrystallizer('S201', 
-                             ins=E101-0, 
-                             outs=('solid_vfa', 'mother_liquor'))
+    # --- 5. Crystallization (Single Output) ---
+    S201 = bst.BatchCrystallizer(
+        'S201',
+        ins=E101-0,
+        outs='solid_vfa'  # 하나의 출력만 사용
+    )
     
     # --- 6. Storage ---
-    T101 = bst.StorageTank('T101', ins=S201-0, outs='stored_vfa', tau=7*24)
+    T101 = bst.StorageTank(
+        'T101',
+        ins=S201-0,  # 'solid_vfa'가 입력으로 전달됨
+        outs=stored_vfa,
+        tau=7*24
+    )
     
-    # --- Connections ---
-    T101-0-1-S401  # Recycle stream to ED for optimization
+    # # --- ED 유닛 결과 확인 ---
+    # print(f"A_m: {S401.A_m:.4f} m²")
+    # print(f"DC Tank HRT: {S401.dc_storage.tau} hr")
+    # print(f"AC Tank HRT: {S401.ac_storage.tau} hr")
+    # print(f"DC Tank Volume: {S401.dc_storage.design_results.get('Total volume', 'N/A')} m³")
+    # print(f"AC Tank Volume: {S401.ac_storage.design_results.get('Total volume', 'N/A')} m³")
+    
     
     return [R101, U302, S401, E101, S201, T101]
 
-# %% Diagram and Summary
-
-if __name__ == '__main__':
-    vfa_sys = create_VFA_sys()
-    vfa_sys.simulate()
-    vfa_sys.diagram('thorough')
-
-    # System Summary
-    vfa_sys.show()
-    bst.report()
-
 #%%
-# VFA 시스템 생성
+# VFA System
 VFA_sys = create_VFA_sys()
 VFA_sys.diagram()
 #%%
+VFA_sys.simulate()
+VFA_sys.show()
+#%%
 # ---------------------------
-# TEA 객체 생성
+# TEA
 # ---------------------------
 template_tea = TemplateTEA(
     system=VFA_sys,

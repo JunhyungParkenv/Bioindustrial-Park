@@ -199,14 +199,10 @@ class ED(bst.Unit):
         self.ac_storage = bst.StorageTank('AC_Tank', tau=dc_tau / 4)
 
     def calculate_flux(self, I):
-        if self.A_m <= 0 or self.z_T <= 0:
-            raise ValueError(f"{self.ID}: Invalid parameters for flux calculation.")
         J_T_dict = {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
         return J_T_dict
 
     def calculate_membrane_area(self, total_moles_to_transfer, total_flux):
-        if total_flux <= 0:
-            raise ValueError(f"{self.ID}: Total flux must be greater than zero for membrane area calculation.")
         A_m = total_moles_to_transfer / (total_flux * self.t)
         return A_m
     
