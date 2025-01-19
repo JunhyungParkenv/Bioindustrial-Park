@@ -199,8 +199,10 @@ class ED(bst.Unit):
         self.ac_storage = bst.StorageTank('AC_Tank', tau=dc_tau / 4)
 
     def calculate_flux(self, I):
-        if self.A_m <= 0 or self.z_T <= 0:
-            raise ValueError(f"{self.ID}: Invalid parameters for flux calculation.")
+        if self.A_m <= 0:
+            raise ValueError(f"{self.ID}: Membrane area (A_m) must be greater than zero.")
+        if self.z_T <= 0:
+            raise ValueError(f"{self.ID}: Total charge number (z_T) must be greater than zero.")
         J_T_dict = {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
         return J_T_dict
 
@@ -216,16 +218,38 @@ class ED(bst.Unit):
         return {'V_dc': V_dc, 'V_ac': V_ac}
 
     def _run(self):
+        print(f"Running ED unit with A_m={self.A_m}, target_ratio={self.target_ratio}, dc_tau={self.dc_tau}")
         inf_dc, inf_ac = self.ins
         eff_dc, eff_ac = self.outs
-
+    
+        # 입력 스트림 확인
+        print(f"inf_dc: {inf_dc}")
+        print(f"inf_ac: {inf_ac}")
+    
+        # 총 VFA 계산
         total_initial_vfa = sum(inf_dc.imol[ion] * 1e3 for ion in self.CE_dict if ion != 'LacticAcid')
         total_vfa_to_transfer = total_initial_vfa * self.target_ratio
-
+    
+        if total_vfa_to_transfer <= 0:
+            raise ValueError(f"{self.ID}: Target ratio leads to invalid VFA transfer calculation.")
+        
+        # 전류 계산
         I = self.j * self.A_m
+        if I <= 0:
+            raise ValueError(f"{self.ID}: Current (I) must be greater than zero.")
+    
+        # Flux 계산
         J_T_dict = self.calculate_flux(I)
         total_flux = sum(J_T_dict.values())
+        if total_flux <= 0:
+            raise ValueError(f"{self.ID}: Total flux must be greater than zero.")
+    
+        # 멤브레인 면적 재계산
         self.A_m = self.calculate_membrane_area(total_vfa_to_transfer, total_flux)
+        if self.A_m <= 0:
+            raise ValueError(f"{self.ID}: Membrane area (A_m) is zero or negative after calculation.")
+    
+        print(f"Final A_m: {self.A_m}, total_flux: {total_flux}, I: {I}")
 
         I = self.j * self.A_m
         J_T_dict = self.calculate_flux(I)
