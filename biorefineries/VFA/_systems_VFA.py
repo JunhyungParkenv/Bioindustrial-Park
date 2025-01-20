@@ -17,6 +17,7 @@ from biorefineries.VFA import _chemicals
 from biorefineries.VFA import _units
 from biorefineries.VFA._chemicals import chems, chemical_groups, get_grouped_chemicals
 from biorefineries.cornstover import CellulosicEthanolTEA as TemplateTEA
+from biorefineries.SAF._process_settings import price
 # # Create and compile chemicals
 # chems = tmo.Chemicals([])
 
