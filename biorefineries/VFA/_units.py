@@ -291,39 +291,44 @@ class ED(bst.Unit):
         eff_dc.imol['Water'] = inf_dc.imol['Water']
         eff_ac.imol['Water'] = inf_ac.imol['Water']
         
-        # StorageTank 연결 수정
-        self.dc_storage.empty()
-        self.ac_storage.empty()
+        # StorageTank와 연결
+        self.dc_storage.ins[:] = [eff_dc]
+        self.ac_storage.ins[:] = [eff_ac]
+        self.outs[0].copy_like(eff_dc)
+        self.outs[1].copy_like(eff_ac)
+        # # StorageTank 연결 수정
+        # self.dc_storage.empty()
+        # self.ac_storage.empty()
         
-        # StorageTank 입력 및 출력 스트림 설정
-        self.dc_storage.ins[:] = [eff_dc.copy()]
-        # self.dc_storage.outs[:] = [eff_dc]
-        self.ac_storage.ins[:] = [eff_ac.copy()]
-        # self.ac_storage.outs[:] = [eff_ac]
+        # # StorageTank 입력 및 출력 스트림 설정
+        # self.dc_storage.ins[:] = [eff_dc.copy()]
+        # # self.dc_storage.outs[:] = [eff_dc]
+        # self.ac_storage.ins[:] = [eff_ac.copy()]
+        # # self.ac_storage.outs[:] = [eff_ac]
         
-        # self.dc_storage.ins[:] = [eff_dc]
-        # self.ac_storage.ins[:] = [eff_ac]
+        # # self.dc_storage.ins[:] = [eff_dc]
+        # # self.ac_storage.ins[:] = [eff_ac]
         
-        # self.dc_storage.ins[:] = [eff_dc]
-        # self.dc_storage.outs[:] = [eff_dc]
-        # self.ac_storage.ins[:] = [eff_ac]
-        # self.ac_storage.outs[:] = [eff_ac]
+        # # self.dc_storage.ins[:] = [eff_dc]
+        # # self.dc_storage.outs[:] = [eff_dc]
+        # # self.ac_storage.ins[:] = [eff_ac]
+        # # self.ac_storage.outs[:] = [eff_ac]
 
-        self.dc_storage.simulate()
-        self.ac_storage.simulate()
+        # self.dc_storage.simulate()
+        # self.ac_storage.simulate()
         
-        # 최종 출력 스트림 설정
-        self.outs[0].copy_like(self.dc_storage.outs[0])
-        self.outs[1].copy_like(self.ac_storage.outs[0])
+        # # 최종 출력 스트림 설정
+        # self.outs[0].copy_like(self.dc_storage.outs[0])
+        # self.outs[1].copy_like(self.ac_storage.outs[0])
         
-        # StorageTank 크기 출력
-        dc_volume = self.dc_storage.tau * inf_dc.F_vol  # 유량 x 체류 시간
-        ac_volume = self.ac_storage.tau * inf_ac.F_vol  # 유량 x 체류 시간
+        # # StorageTank 크기 출력
+        # dc_volume = self.dc_storage.tau * inf_dc.F_vol  # 유량 x 체류 시간
+        # ac_volume = self.ac_storage.tau * inf_ac.F_vol  # 유량 x 체류 시간
         
-        self.dc_storage._design()  # 설계 메서드 명시적 호출
-        self.ac_storage._design()
-        print(f"DC Storage Tank Volume: {dc_volume:.2f} m³")
-        print(f"AC Storage Tank Volume: {ac_volume:.2f} m³")
+        # self.dc_storage._design()  # 설계 메서드 명시적 호출
+        # self.ac_storage._design()
+        # print(f"DC Storage Tank Volume: {dc_volume:.2f} m³")
+        # print(f"AC Storage Tank Volume: {ac_volume:.2f} m³")
         # self.outs[0] = self.dc_storage.outs[0]
         # self.outs[1] = self.ac_storage.outs[0]
 
