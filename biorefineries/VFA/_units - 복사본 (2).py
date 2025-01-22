@@ -284,17 +284,11 @@ class ED(bst.Unit):
 
         eff_dc.imol['Water'] = inf_dc.imol['Water']
         eff_ac.imol['Water'] = inf_ac.imol['Water']
-        
-        # StorageTank 연결 수정
-        self.dc_storage.empty()
-        self.ac_storage.empty()
-        
+
         self.dc_storage.ins[:] = [eff_dc]
+        self.dc_storage.outs[:] = [eff_dc]
         self.ac_storage.ins[:] = [eff_ac]
-        # self.dc_storage.ins[:] = [eff_dc]
-        # self.dc_storage.outs[:] = [eff_dc]
-        # self.ac_storage.ins[:] = [eff_ac]
-        # self.ac_storage.outs[:] = [eff_ac]
+        self.ac_storage.outs[:] = [eff_ac]
 
         self.dc_storage.simulate()
         self.ac_storage.simulate()

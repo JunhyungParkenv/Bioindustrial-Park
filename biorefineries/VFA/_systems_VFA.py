@@ -40,26 +40,26 @@ from biorefineries.VFA._process_settings import price
 
 # Thermodynamic properties
 tmo.settings.set_thermo(chems)
-flowsheet = main_flowsheet
-flowsheet.clear()
-flowsheet.set_flowsheet(bst.Flowsheet('VFA_Recovery'))
+
+# Flowsheet Initialization
+flowsheet = bst.Flowsheet('VFA_Recovery')
+bst.main_flowsheet.set_flowsheet(flowsheet)
 
 # %% Feedstock Stream Definition
 # Feedstock stream 수정
-feedstock = Stream(
-    'feedstock',
-    Water=154570.91,  # 물의 질량 흐름 (kg/hr)
-    Glucose=3154.51,  # Glucose의 질량 흐름 (kg/hr)
-    # FermMicrobe=8.,Lignin = 5., 
-    # SolubleLignin = 10., GlucoseOligomer = 5.,
-    units='kg/hr',
-    price=0.1  # Example price
-)
+# feedstock = Stream(
+#     'feedstock',
+#     Water=154570.91,  # 물의 질량 흐름 (kg/hr)
+#     Glucose=3154.51,  # Glucose의 질량 흐름 (kg/hr)
+#     # FermMicrobe=8.,Lignin = 5., 
+#     # SolubleLignin = 10., GlucoseOligomer = 5.,
+#     units='kg/hr',
+#     price=0.1  # Example price
+# )
 
-feedstock.imol['Water'] = 154570.91 / chems.Water.MW  # kg -> kmol
-feedstock.imol['Glucose'] = 3154.51 / chems.Glucose.MW  # kg -> kmol
+# feedstock.imol['Water'] = 154570.91 / chems.Water.MW  # kg -> kmol
+# feedstock.imol['Glucose'] = 3154.51 / chems.Glucose.MW  # kg -> kmol
 # %% System Definition
-
 @SystemFactory(
     ID='VFA_sys',
     ins=[dict(ID='feedstock', units='kg/hr')],
@@ -74,22 +74,22 @@ def create_VFA_sys(ins, outs):
     feedstock = ins[0]
     stored_vfa, waste_stream = outs
 
-    # # Feedstock initialization
-    # feedstock.imol['Water'] = 8751.4
-    # feedstock.imol['Glucose'] = 17632.44
-    # feedstock.price = 0.1
+    # --- Feedstock Initialization ---
+    feedstock.imass['Water'] = 154570.91
+    feedstock.imass['Glucose'] = 3154.51
+    feedstock.price = 0.1  # Price per kg
 
     # --- 1. Anaerobic Digestion (UASB Reactor) ---
-    R101 = _units.UASB('R101', ins=feedstock, outs=('biogas', 'vfa_solution'))
+    R101 = _units.UASB('R101', ins=feedstock, outs=('vfa_solution', 'biogas'))
     
     print("R101 outputs:")
-    print(f"Biogas: {R101.outs[0].show()}")
-    print(f"VFA solution: {R101.outs[1].show()}")
+    print(f"VFA solution: {R101.outs[0].show()}")
+    print(f"Biogas: {R101.outs[1].show()}")
     
     # --- 2. Solid-Liquid Separation ---
     U302 = _units.CellMassFilter(
         'U302',
-        ins=R101-1,
+        ins=R101-0,  # vfa_solution
         outs=('U302_cell_mass', 'vfa_filtered'),
         moisture_content=0.99,
         split=0.01
@@ -99,12 +99,12 @@ def create_VFA_sys(ins, outs):
     print(f"Cell mass: {U302.outs[0].show()}")
     print(f"VFA filtered: {U302.outs[1].show()}")
     
-    # --- 2.1 Split into inf_dc and inf_ac using Splitter ---
+    # --- 2.1 Split into inf_dc and inf_ac ---
     S302 = bst.Splitter(
         'S302',
         ins=U302-1,  # vfa_filtered
         outs=('inf_dc', 'inf_ac'),
-        split=0.8  # 80%는 inf_dc, 20%는 inf_ac로 분배
+        split=0.8  # 80% inf_dc, 20% inf_ac
     )
     
     print("S302 outputs:")
@@ -116,13 +116,12 @@ def create_VFA_sys(ins, outs):
         'S401',
         ins=(S302-1, S302-0),  # inf_dc, inf_ac
         outs=('vfa_concentrate', waste_stream),
-        j=11.375,          # 전류 밀도 [A/m²]
-        t=24*3600,         # 시간 [초]
-        target_ratio=0.8,  # 목표 농도 비율
-        dc_tau=24          # DC 탱크 체류 시간 [hr]
+        j=11.375,          # Current density [A/m²]
+        t=24*3600,         # Time [s]
+        target_ratio=0.8,  # Target concentration ratio
+        dc_tau=24          # DC tank residence time [hr]
     )
     
-    # 출력 스트림 확인
     print("S401 outputs:")
     print(f"VFA concentrate: {S401.outs[0].show()}")
     print(f"Waste stream: {S401.outs[1].show()}")
@@ -137,30 +136,23 @@ def create_VFA_sys(ins, outs):
         P=(101325, 73581, 50892, 32777)
     )
     
-    # --- 5. Crystallization (Single Output) ---
+    # --- 5. Crystallization ---
     S201 = bst.BatchCrystallizer(
         'S201',
         ins=E101-0,
-        outs='solid_vfa'  # 하나의 출력만 사용
+        outs='solid_vfa'
     )
     
     # --- 6. Storage ---
     T101 = bst.StorageTank(
         'T101',
-        ins=S201-0,  # 'solid_vfa'가 입력으로 전달됨
+        ins=S201-0,
         outs=stored_vfa,
-        tau=7*24
+        tau=7*24  # 7 days
     )
-    
-    # # --- ED 유닛 결과 확인 ---
-    # print(f"A_m: {S401.A_m:.4f} m²")
-    # print(f"DC Tank HRT: {S401.dc_storage.tau} hr")
-    # print(f"AC Tank HRT: {S401.ac_storage.tau} hr")
-    # print(f"DC Tank Volume: {S401.dc_storage.design_results.get('Total volume', 'N/A')} m³")
-    # print(f"AC Tank Volume: {S401.ac_storage.design_results.get('Total volume', 'N/A')} m³")
-    
-    
-    return [R101, U302, S401, E101, S201, T101]
+
+    # Return all units for inspection (optional)
+    # return [R101, U302, S401, E101, S201, T101]
 
 #%%
 # VFA System
