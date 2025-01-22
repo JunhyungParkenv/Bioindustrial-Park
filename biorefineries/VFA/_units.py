@@ -271,8 +271,12 @@ class ED(bst.Unit):
     
         print(f"Final A_m: {self.A_m}, total_flux: {total_flux}, I: {I}")
 
-        I = self.j * self.A_m
-        J_T_dict = self.calculate_flux(I)
+        # I = self.j * self.A_m
+        # J_T_dict = self.calculate_flux(I)
+        
+        # 초기화
+        eff_dc.empty()
+        eff_ac.empty()
         
         for ion in self.CE_dict:
             n_transferred = J_T_dict[ion] * self.A_m * self.t
@@ -289,8 +293,15 @@ class ED(bst.Unit):
         self.dc_storage.empty()
         self.ac_storage.empty()
         
-        self.dc_storage.ins[:] = [eff_dc]
-        self.ac_storage.ins[:] = [eff_ac]
+        # StorageTank 입력 및 출력 스트림 설정
+        self.dc_storage.ins[:] = [eff_dc.copy()]
+        # self.dc_storage.outs[:] = [eff_dc]
+        self.ac_storage.ins[:] = [eff_ac.copy()]
+        # self.ac_storage.outs[:] = [eff_ac]
+        
+        # self.dc_storage.ins[:] = [eff_dc]
+        # self.ac_storage.ins[:] = [eff_ac]
+        
         # self.dc_storage.ins[:] = [eff_dc]
         # self.dc_storage.outs[:] = [eff_dc]
         # self.ac_storage.ins[:] = [eff_ac]
@@ -299,8 +310,12 @@ class ED(bst.Unit):
         self.dc_storage.simulate()
         self.ac_storage.simulate()
         
-        self.outs[0] = self.dc_storage.outs[0]
-        self.outs[1] = self.ac_storage.outs[0]
+        # 최종 출력 스트림 설정
+        self.outs[0].copy_like(self.dc_storage.outs[0])
+        self.outs[1].copy_like(self.ac_storage.outs[0])
+        
+        # self.outs[0] = self.dc_storage.outs[0]
+        # self.outs[1] = self.ac_storage.outs[0]
 
     _units = {
         'Membrane area': 'm^2',

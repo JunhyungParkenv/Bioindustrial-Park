@@ -114,8 +114,8 @@ def create_VFA_sys(ins, outs):
     # --- 3. Electrodialysis Separation ---
     S401 = _units.ED(
         'S401',
-        ins=(S302-1, S302-0),  # inf_dc, inf_ac
-        outs=('vfa_concentrate', waste_stream),
+        ins=(S302-0, S302-1),  # inf_dc, inf_ac
+        outs=(waste_stream, 'vfa_concentrate'),
         j=11.375,          # Current density [A/m²]
         t=24*3600,         # Time [s]
         target_ratio=0.8,  # Target concentration ratio
@@ -129,7 +129,7 @@ def create_VFA_sys(ins, outs):
     # --- 4. Evaporation ---
     E101 = bst.MultiEffectEvaporator(
         'E101', 
-        ins=S401-0,
+        ins=S401-1,
         outs=('vfa_evaporated', 'evaporated_water'),
         V=0.1,
         V_definition='First-effect',
