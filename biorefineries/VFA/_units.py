@@ -314,6 +314,11 @@ class ED(bst.Unit):
         self.outs[0].copy_like(self.dc_storage.outs[0])
         self.outs[1].copy_like(self.ac_storage.outs[0])
         
+        # StorageTank 크기 출력
+        dc_volume = self.dc_storage.tau * inf_dc.F_vol  # 유량 x 체류 시간
+        ac_volume = self.ac_storage.tau * inf_ac.F_vol  # 유량 x 체류 시간
+        print(f"DC Storage Tank Volume: {dc_volume:.2f} m³")
+        print(f"AC Storage Tank Volume: {ac_volume:.2f} m³")
         # self.outs[0] = self.dc_storage.outs[0]
         # self.outs[1] = self.ac_storage.outs[0]
 
