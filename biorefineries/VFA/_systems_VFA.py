@@ -136,11 +136,21 @@ def create_VFA_sys(ins, outs):
         P=(101325, 73581, 50892, 32777)
     )
     
+    # # --- 5. Crystallization ---
+    # S201 = bst.BatchCrystallizer(
+    #     'S201',
+    #     ins=E101-0,
+    #     outs='solid_vfa'
+    # )
+    
     # --- 5. Crystallization ---
     S201 = bst.BatchCrystallizer(
         'S201',
         ins=E101-0,
-        outs='solid_vfa'
+        outs='solid_vfa',
+        tau=24,         # 기본 체류 시간 [hr]
+        N=2,            # 기본 크리스탈라이저 개수
+        T=305.15        # 기본 온도 [K]
     )
     
     # --- 6. Storage ---

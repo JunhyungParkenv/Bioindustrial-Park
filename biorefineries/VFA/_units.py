@@ -185,6 +185,8 @@ F = 96485.3
 @cost('Membrane area', 'Coating Solution', cost=0.057282, S=1, CE=567.3, n=1, BM=1.1)
 @cost('Membrane area', 'Frames', cost=2, S=1, CE=567.3, n=1, BM=1.1)
 @cost('Membrane area', 'Power supply', cost=20, S=1, CE=567.3, n=1, BM=1.3)
+@cost('DC Tank Volume', 'DC Tank', cost=500, S=1, CE=567.3, n=1, BM=1.5)
+@cost('AC Tank Volume', 'AC Tank', cost=500, S=1, CE=567.3, n=1, BM=1.5)
 class ED(bst.Unit):
     _N_ins = 2
     _N_outs = 2
@@ -317,6 +319,9 @@ class ED(bst.Unit):
         # StorageTank 크기 출력
         dc_volume = self.dc_storage.tau * inf_dc.F_vol  # 유량 x 체류 시간
         ac_volume = self.ac_storage.tau * inf_ac.F_vol  # 유량 x 체류 시간
+        
+        self.dc_storage._design()  # 설계 메서드 명시적 호출
+        self.ac_storage._design()
         print(f"DC Storage Tank Volume: {dc_volume:.2f} m³")
         print(f"AC Storage Tank Volume: {ac_volume:.2f} m³")
         # self.outs[0] = self.dc_storage.outs[0]
@@ -339,6 +344,10 @@ class ED(bst.Unit):
         D['System resistance'] = self.R
         D['System voltage'] = D['Total current'] * self.R
         D['Power consumption'] = D['System voltage'] * D['Total current']
+        
+        # Add storage tank volumes
+        D['DC Tank Volume'] = self.dc_storage.tau * self.ins[0].F_vol
+        D['AC Tank Volume'] = self.ac_storage.tau * self.ins[1].F_vol
         
 #%% Crystallization (BatchCrystallizer)
 #%%
