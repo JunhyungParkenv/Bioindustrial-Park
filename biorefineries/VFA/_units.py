@@ -235,16 +235,11 @@ class ED(bst.Unit):
         self.t = t
         self.target_ratio = target_ratio
         self.dc_tau = dc_tau
-
-        # DC 및 AC 탱크 초기화
-        self.dc_storage = DC_Tank(
-            ID=f"{ID}_dc_tank",
-            tau=dc_tau
-        )
-        self.ac_storage = AC_Tank(
-            ID=f"{ID}_ac_tank",
-            tau=dc_tau / 4  # AC 탱크 체류 시간
-        )
+        self.ac_tau = dc_tau / 4
+        
+        # DC 및 AC 탱크 연결
+        self.dc_storage = DC_Tank(f"{ID}_dc_tank", tau=self.dc_tau)
+        self.ac_storage = AC_Tank(f"{ID}_ac_tank", tau=self.ac_tau)
 
     def calculate_flux(self, I):
         J_T_dict = {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
@@ -278,14 +273,13 @@ class ED(bst.Unit):
         eff_dc.imol['Water'] = inf_dc.imol['Water']
         eff_ac.imol['Water'] = inf_ac.imol['Water']
         
-        # DC 및 AC 탱크와 연동
-        self.dc_storage.ins[:] = [eff_dc]  # DC tank input
-        self.dc_storage.outs[:] = [eff_dc]  # DC tank output
-        self.ac_storage.ins[:] = [eff_ac]  # AC tank input
-        self.ac_storage.outs[:] = [eff_ac]  # AC tank output
-        
-        # Simulate storage tanks
+        # DC 및 AC 탱크 연결 및 시뮬레이션
+        self.dc_storage.ins[:] = [eff_dc]
+        self.dc_storage.outs[:] = [eff_dc]
         self.dc_storage.simulate()
+        
+        self.ac_storage.ins[:] = [eff_ac]
+        self.ac_storage.outs[:] = [eff_ac]
         self.ac_storage.simulate()
         
         # Update outs explicitly
