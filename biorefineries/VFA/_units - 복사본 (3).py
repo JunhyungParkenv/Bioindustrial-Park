@@ -176,37 +176,23 @@ class CellMassFilter(SolidsSeparator):
 
 # MultiEffectEvaporator (MEE)
 
-# Constants
-F = 96485.3  # Faraday constant in Coulombs/mol
+# Electrodialysis (ED)
+F = 96485.3
 
-# --- DC Tank ---
-@cost('Volume', 'DC Tank', cost=1000, S=1, CE=567.3, n=0.7, BM=1.5)
-class DC_Tank(bst.StorageTank):
-    def __init__(self, ID='', ins=None, outs=(), thermo=None, tau=24):
-        super().__init__(ID, ins, outs, thermo)
-        self.tau = tau  # Residence time in hours
-    def _design(self):
-        super()._design()  # Call base class design to calculate volume
-
-
-# --- AC Tank ---
-@cost('Volume', 'AC Tank', cost=1000, S=1, CE=567.3, n=0.7, BM=1.5)
-class AC_Tank(bst.StorageTank):
-    def __init__(self, ID='', ins=None, outs=(), thermo=None, tau=6):
-        super().__init__(ID, ins, outs, thermo)
-        self.tau = tau  # Residence time in hours
-    def _design(self):
-        super()._design()  # Call base class design to calculate volume
-
-
-# --- Electrodialysis Unit (ED) ---
-@cost('Membrane area', 'ED Membrane', cost=500, S=1, CE=567.3, n=1, BM=1.5)
+@cost('Membrane area', 'CEM', cost=100, S=1, CE=567.3, n=1, BM=2)
+@cost('Membrane area', 'NF', cost=30, S=1, CE=567.3, n=1, BM=1.5)
+@cost('Membrane area', 'Current Collector', cost=20, S=1, CE=567.3, n=1, BM=1.2)
+@cost('Membrane area', 'Coating Solution', cost=0.057282, S=1, CE=567.3, n=1, BM=1.1)
+@cost('Membrane area', 'Frames', cost=2, S=1, CE=567.3, n=1, BM=1.1)
+@cost('Membrane area', 'Power supply', cost=20, S=1, CE=567.3, n=1, BM=1.3)
+@cost('DC Tank Volume', 'DC Tank', cost=500, S=1, CE=567.3, n=1, BM=1.5)
+@cost('AC Tank Volume', 'AC Tank', cost=500, S=1, CE=567.3, n=1, BM=1.5)
 class ED(bst.Unit):
-    _N_ins = 2  # inf_dc, inf_ac
-    _N_outs = 2  # eff_dc, eff_ac
+    _N_ins = 2
+    _N_outs = 2
 
-    def __init__(self, ID='', ins=None, outs=(), thermo=None, CE_dict=None, j=5.058, 
-                 A_m=None, R=0.0000222, z_T=1.0, t=24*3600, target_ratio=0.8):
+    def __init__(self, ID='', ins=None, outs=None, thermo=None, CE_dict=None, j=5.058, 
+                 A_m=None, R=0.0000222, z_T=1.0, t=24*3600, dc_tau=24, target_ratio=0.8):
         super().__init__(ID, ins, outs, thermo=thermo)
         self.CE_dict = CE_dict or {
             'AceticAcid': 0.164472, 'PropionicAcid': 0.082236, 'ButyricAcid': 0.059,
@@ -218,39 +204,144 @@ class ED(bst.Unit):
         self.z_T = z_T
         self.t = t
         self.target_ratio = target_ratio
+        self.dc_tau = dc_tau
+
+        self.dc_storage = bst.StorageTank('DC_Tank', tau=dc_tau)
+        self.ac_storage = bst.StorageTank('AC_Tank', tau=dc_tau / 4)
 
     def calculate_flux(self, I):
+        if self.A_m <= 0:
+            raise ValueError(f"{self.ID}: Membrane area (A_m) must be greater than zero.")
+        if self.z_T <= 0:
+            raise ValueError(f"{self.ID}: Total charge number (z_T) must be greater than zero.")
         J_T_dict = {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
         return J_T_dict
 
     def calculate_membrane_area(self, total_moles_to_transfer, total_flux):
+        if total_flux <= 0:
+            raise ValueError(f"{self.ID}: Total flux must be greater than zero for membrane area calculation.")
         A_m = total_moles_to_transfer / (total_flux * self.t)
         return A_m
+    
+    def calculate_tank_volumes(self, Q_dc, HRT, ratio_ac_to_dc=0.2/0.8):
+        V_dc = Q_dc * HRT
+        V_ac = V_dc * ratio_ac_to_dc
+        return {'V_dc': V_dc, 'V_ac': V_ac}
 
     def _run(self):
+        print(f"Running ED unit with A_m={self.A_m}, target_ratio={self.target_ratio}, dc_tau={self.dc_tau}")
         inf_dc, inf_ac = self.ins
         eff_dc, eff_ac = self.outs
-
-        total_initial_vfa = sum(inf_dc.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
+    
+        # 입력 스트림 확인
+        print("inf_dc contents:")
+        print(inf_dc.show())
+        print("inf_ac contents:")
+        print(inf_ac.show())
+    
+        # 총 VFA 계산
+        total_initial_vfa = sum(inf_dc.imol[ion] * 1e3 for ion in self.CE_dict if ion != 'LacticAcid')
+    
+        if total_initial_vfa <= 0:
+            raise ValueError(f"{self.ID}: `inf_dc` contains no valid VFAs for transfer.")
+    
+        if self.target_ratio <= 0 or self.target_ratio > 1:
+            raise ValueError(f"{self.ID}: Target ratio must be between 0 and 1.")
+    
         total_vfa_to_transfer = total_initial_vfa * self.target_ratio
-
+    
+        print(f"Total initial VFA: {total_initial_vfa} mmol, Target transfer: {total_vfa_to_transfer} mmol")
+    
+        if total_vfa_to_transfer <= 0:
+            raise ValueError(f"{self.ID}: Target ratio leads to invalid VFA transfer calculation.")
+    
+        # 전류 계산
         I = self.j * self.A_m
+        if I <= 0:
+            raise ValueError(f"{self.ID}: Current (I) must be greater than zero.")
+    
+        # Flux 계산
         J_T_dict = self.calculate_flux(I)
         total_flux = sum(J_T_dict.values())
-
+        if total_flux <= 0:
+            raise ValueError(f"{self.ID}: Total flux must be greater than zero.")
+    
+        # 멤브레인 면적 재계산
         self.A_m = self.calculate_membrane_area(total_vfa_to_transfer, total_flux)
+        if self.A_m <= 0:
+            raise ValueError(f"{self.ID}: Membrane area (A_m) is zero or negative after calculation.")
+    
+        print(f"Final A_m: {self.A_m}, total_flux: {total_flux}, I: {I}")
 
+        # I = self.j * self.A_m
+        # J_T_dict = self.calculate_flux(I)
+        
+        # 초기화
+        eff_dc.empty()
+        eff_ac.empty()
+        
         for ion in self.CE_dict:
             n_transferred = J_T_dict[ion] * self.A_m * self.t
-            available_amount = inf_dc.imol[ion]
+            available_amount = inf_dc.imol[ion] * 1e3
             actual_transfer = min(n_transferred, available_amount)
-
-            eff_ac.imol[ion] += actual_transfer
-            eff_dc.imol[ion] -= actual_transfer
+                
+            eff_ac.imol[ion] = (inf_ac.imol[ion] * 1e3 + actual_transfer) / 1e3
+            eff_dc.imol[ion] = (inf_dc.imol[ion] * 1e3 - actual_transfer) / 1e3
 
         eff_dc.imol['Water'] = inf_dc.imol['Water']
         eff_ac.imol['Water'] = inf_ac.imol['Water']
+        
+        # StorageTank와 연결
+        self.dc_storage.ins[:] = [eff_dc]
+        self.ac_storage.ins[:] = [eff_ac]
+        self.outs[0].copy_like(eff_dc)
+        self.outs[1].copy_like(eff_ac)
+        # # StorageTank 연결 수정
+        # self.dc_storage.empty()
+        # self.ac_storage.empty()
+        
+        # # StorageTank 입력 및 출력 스트림 설정
+        # self.dc_storage.ins[:] = [eff_dc.copy()]
+        # # self.dc_storage.outs[:] = [eff_dc]
+        # self.ac_storage.ins[:] = [eff_ac.copy()]
+        # # self.ac_storage.outs[:] = [eff_ac]
+        
+        # # self.dc_storage.ins[:] = [eff_dc]
+        # # self.ac_storage.ins[:] = [eff_ac]
+        
+        # # self.dc_storage.ins[:] = [eff_dc]
+        # # self.dc_storage.outs[:] = [eff_dc]
+        # # self.ac_storage.ins[:] = [eff_ac]
+        # # self.ac_storage.outs[:] = [eff_ac]
 
+        # self.dc_storage.simulate()
+        # self.ac_storage.simulate()
+        
+        # # 최종 출력 스트림 설정
+        # self.outs[0].copy_like(self.dc_storage.outs[0])
+        # self.outs[1].copy_like(self.ac_storage.outs[0])
+        
+        # # StorageTank 크기 출력
+        # dc_volume = self.dc_storage.tau * inf_dc.F_vol  # 유량 x 체류 시간
+        # ac_volume = self.ac_storage.tau * inf_ac.F_vol  # 유량 x 체류 시간
+        
+        # self.dc_storage._design()  # 설계 메서드 명시적 호출
+        # self.ac_storage._design()
+        # print(f"DC Storage Tank Volume: {dc_volume:.2f} m³")
+        # print(f"AC Storage Tank Volume: {ac_volume:.2f} m³")
+        # self.outs[0] = self.dc_storage.outs[0]
+        # self.outs[1] = self.ac_storage.outs[0]
+
+    _units = {
+        'Membrane area': 'm^2',
+        'DC Tank Volume': 'm^3',
+        'AC Tank Volume': 'm^3',
+        'System resistance': 'Ohm',
+        'System voltage': 'V',
+        'Power consumption': 'W',
+        'Total current': 'A',
+    }
+    
     def _design(self):
         D = self.design_results
         D['Membrane area'] = self.A_m
@@ -258,6 +349,10 @@ class ED(bst.Unit):
         D['System resistance'] = self.R
         D['System voltage'] = D['Total current'] * self.R
         D['Power consumption'] = D['System voltage'] * D['Total current']
+        
+        # Add storage tank volumes
+        D['DC Tank Volume'] = self.dc_storage.tau * self.ins[0].F_vol
+        D['AC Tank Volume'] = self.ac_storage.tau * self.ins[1].F_vol
         
 #%% Crystallization (BatchCrystallizer)
 #%%

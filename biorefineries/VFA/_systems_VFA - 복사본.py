@@ -115,55 +115,52 @@ def create_VFA_sys(ins, outs):
     S401 = _units.ED(
         'S401',
         ins=(S302-0, S302-1),  # inf_dc, inf_ac
-        outs=('dc_output', 'ac_output'),  # Outputs for DC and AC tanks
-        j=11.375,  # Current density
-        t=24*3600,  # Time
-        target_ratio=0.8
+        outs=(waste_stream, 'vfa_concentrate'),
+        j=11.375,          # Current density [A/m²]
+        t=24*3600,         # Time [s]
+        target_ratio=0.8,  # Target concentration ratio
+        dc_tau=24          # DC tank residence time [hr]
     )
-
-    # --- 3.1 DC Tank and AC Tank ---
-    T301 = _units.DC_Tank(
-        'T301',
-        ins=S401-0,  # dc_output
-        outs=waste_stream,  # DC Tank output to waste stream
-        tau=24  # Residence time in hours
-    )
-
-    T302 = _units.AC_Tank(
-        'T302',
-        ins=S401-1,  # ac_output
-        outs=('ac_output_to_mee'),  # AC Tank output to MEE
-        tau=6  # Residence time in hours
-    )
-
+    
+    print("S401 outputs:")
+    print(f"VFA concentrate: {S401.outs[0].show()}")
+    print(f"Waste stream: {S401.outs[1].show()}")
+    
     # --- 4. Evaporation ---
     E101 = bst.MultiEffectEvaporator(
-        'E101',
-        ins=T302-0,  # AC Tank output to MEE
+        'E101', 
+        ins=S401.ac_storage.outs[0],
         outs=('vfa_evaporated', 'evaporated_water'),
         V=0.1,
         V_definition='First-effect',
         P=(101325, 73581, 50892, 32777)
     )
 
+    # # --- 5. Crystallization ---
+    # S201 = bst.BatchCrystallizer(
+    #     'S201',
+    #     ins=E101-0,
+    #     outs='solid_vfa'
+    # )
+    
     # --- 5. Crystallization ---
     S201 = bst.BatchCrystallizer(
         'S201',
         ins=E101-0,
         outs='solid_vfa',
-        tau=24,  # Residence time
-        N=2,  # Number of crystallizers
-        T=305.15  # Temperature
+        tau=24,         # 기본 체류 시간 [hr]
+        N=2,            # 기본 크리스탈라이저 개수
+        T=305.15        # 기본 온도 [K]
     )
 
+    
     # --- 6. Storage ---
     T101 = bst.StorageTank(
         'T101',
         ins=S201-0,
         outs=stored_vfa,
-        tau=7*24  # Storage time
+        tau=7*24  # 7 days
     )
-
 
     # Return all units for inspection (optional)
     # return [R101, U302, S401, E101, S201, T101]
