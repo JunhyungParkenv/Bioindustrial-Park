@@ -206,7 +206,12 @@ class AC_Tank(bst.StorageTank):
 
 
 # --- Electrodialysis Unit (ED) ---
-@cost('Membrane area', 'ED Membrane', cost=500, S=1, CE=567.3, n=1, BM=1.5)
+@cost('Membrane area', 'CEM', cost=100, S=1, CE=567.3, n=1, BM=2)
+@cost('Membrane area', 'NF', cost=30, S=1, CE=567.3, n=1, BM=1.5)
+@cost('Membrane area', 'Current Collector', cost=20, S=1, CE=567.3, n=1, BM=1.2)
+@cost('Membrane area', 'Coating Solution', cost=0.057282, S=1, CE=567.3, n=1, BM=1.1)
+@cost('Membrane area', 'Frames', cost=2, S=1, CE=567.3, n=1, BM=1.1)
+@cost('Membrane area', 'Power supply', cost=20, S=1, CE=567.3, n=1, BM=1.3)
 class ED(bst.Unit):
     _N_ins = 2  # inf_dc, inf_ac
     _N_outs = 2  # eff_dc, eff_ac
@@ -256,7 +261,14 @@ class ED(bst.Unit):
 
         eff_dc.imol['Water'] = inf_dc.imol['Water']
         eff_ac.imol['Water'] = inf_ac.imol['Water']
-
+        
+    _units = {
+        'Membrane area': 'm^2',
+        'System resistance': 'Ohm',
+        'System voltage': 'V',
+        'Power consumption': 'W',
+        'Total current': 'A',
+    }
     def _design(self):
         D = self.design_results
         D['Membrane area'] = self.A_m
