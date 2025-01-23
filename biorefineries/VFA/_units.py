@@ -176,9 +176,6 @@ class CellMassFilter(SolidsSeparator):
 
 # MultiEffectEvaporator (MEE)
 
-# Constants
-F = 96485.3  # Faraday constant in Coulombs/mol
-
 # --- DC Tank ---
 @cost('Volume', 'DC Tank', cost=1000, S=1, CE=567.3, n=0.7, BM=1.5)
 class DC_Tank(bst.StorageTank):
@@ -211,6 +208,8 @@ class AC_Tank(bst.StorageTank):
         super()._design()
 
 # --- Electrodialysis Unit (ED) ---
+# Constants
+F = 96485.3  # Faraday constant in Coulombs/mol
 @cost('Membrane area', 'CEM', cost=100, S=1, CE=567.3, n=1, BM=2)
 @cost('Membrane area', 'NF', cost=30, S=1, CE=567.3, n=1, BM=1.5)
 @cost('Membrane area', 'Current Collector', cost=20, S=1, CE=567.3, n=1, BM=1.2)

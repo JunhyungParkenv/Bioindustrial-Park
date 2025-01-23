@@ -164,7 +164,6 @@ def create_VFA_sys(ins, outs):
         tau=7*24  # Storage time
     )
 
-
     # Return all units for inspection (optional)
     # return [R101, U302, S401, E101, S201, T101]
 
