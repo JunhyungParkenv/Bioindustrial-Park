@@ -182,9 +182,12 @@ F = 96485.3  # Faraday constant in Coulombs/mol
 # --- DC Tank ---
 @cost('Volume', 'DC Tank', cost=1000, S=1, CE=567.3, n=0.7, BM=1.5)
 class DC_Tank(bst.StorageTank):
+    _units = {'Volume': 'm³'}  # 비용 계산에 필요한 단위 추가
+
     def __init__(self, ID='', ins=None, outs=(), thermo=None, tau=24):
         super().__init__(ID, ins, outs, thermo)
         self.tau = tau  # Residence time in hours
+
     def _design(self):
         super()._design()  # Call base class design to calculate volume
 
@@ -192,9 +195,12 @@ class DC_Tank(bst.StorageTank):
 # --- AC Tank ---
 @cost('Volume', 'AC Tank', cost=1000, S=1, CE=567.3, n=0.7, BM=1.5)
 class AC_Tank(bst.StorageTank):
+    _units = {'Volume': 'm³'}  # 비용 계산에 필요한 단위 추가
+
     def __init__(self, ID='', ins=None, outs=(), thermo=None, tau=6):
         super().__init__(ID, ins, outs, thermo)
         self.tau = tau  # Residence time in hours
+
     def _design(self):
         super()._design()  # Call base class design to calculate volume
 
