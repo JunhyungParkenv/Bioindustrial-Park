@@ -189,7 +189,10 @@ class DC_Tank(bst.StorageTank):
         self.tau = tau  # Residence time in hours
 
     def _design(self):
-        super()._design()  # Call base class design to calculate volume
+        feed = self.ins[0]
+        Design = self.design_results
+        Design['Volume'] = feed.F_vol * self.tau  # 체류 시간과 유량 기반으로 볼륨 계산
+        super()._design()
 
 
 # --- AC Tank ---
@@ -202,8 +205,10 @@ class AC_Tank(bst.StorageTank):
         self.tau = tau  # Residence time in hours
 
     def _design(self):
-        super()._design()  # Call base class design to calculate volume
-
+        feed = self.ins[0]
+        Design = self.design_results
+        Design['Volume'] = feed.F_vol * self.tau  # 체류 시간과 유량 기반으로 볼륨 계산
+        super()._design()
 
 # --- Electrodialysis Unit (ED) ---
 @cost('Membrane area', 'CEM', cost=100, S=1, CE=567.3, n=1, BM=2)
@@ -217,7 +222,7 @@ class ED(bst.Unit):
     _N_outs = 2  # eff_dc, eff_ac
 
     def __init__(self, ID='', ins=None, outs=(), thermo=None, CE_dict=None, j=5.058, 
-                 A_m=None, R=0.0000222, z_T=1.0, t=24*3600, target_ratio=0.8):
+                 A_m=None, R=0.0000222, z_T=1.0, t=24*3600, dc_tau=24, target_ratio=0.8):
         super().__init__(ID, ins, outs, thermo=thermo)
         self.CE_dict = CE_dict or {
             'AceticAcid': 0.164472, 'PropionicAcid': 0.082236, 'ButyricAcid': 0.059,
@@ -229,6 +234,17 @@ class ED(bst.Unit):
         self.z_T = z_T
         self.t = t
         self.target_ratio = target_ratio
+        self.dc_tau = dc_tau
+
+        # DC 및 AC 탱크 초기화
+        self.dc_storage = DC_Tank(
+            ID=f"{ID}_dc_tank",
+            tau=dc_tau
+        )
+        self.ac_storage = AC_Tank(
+            ID=f"{ID}_ac_tank",
+            tau=dc_tau / 4  # AC 탱크 체류 시간
+        )
 
     def calculate_flux(self, I):
         J_T_dict = {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
@@ -261,6 +277,20 @@ class ED(bst.Unit):
 
         eff_dc.imol['Water'] = inf_dc.imol['Water']
         eff_ac.imol['Water'] = inf_ac.imol['Water']
+        
+        # DC 및 AC 탱크와 연동
+        self.dc_storage.ins[:] = [eff_dc]  # DC tank input
+        self.dc_storage.outs[:] = [eff_dc]  # DC tank output
+        self.ac_storage.ins[:] = [eff_ac]  # AC tank input
+        self.ac_storage.outs[:] = [eff_ac]  # AC tank output
+        
+        # Simulate storage tanks
+        self.dc_storage.simulate()
+        self.ac_storage.simulate()
+        
+        # Update outs explicitly
+        self.outs[0] = self.dc_storage.outs[0]
+        self.outs[1] = self.ac_storage.outs[0]
         
     _units = {
         'Membrane area': 'm^2',
