@@ -5,14 +5,14 @@ Created on Thu Nov 21 18:49:35 2024
 @author: Junhyung Park
 """
 
-from biosteam.units.design_tools.geometry import cylinder_diameter_from_volume
+# from biosteam.units.design_tools.geometry import cylinder_diameter_from_volume
 from thermosteam import MultiStream
 from biosteam import Unit
 from biosteam.units import Flash, HXutility, Mixer, MixTank, Pump, \
     SolidsSeparator, StorageTank, LiquidsSplitSettler
-from biorefineries.make_a_biorefinery.utils import CEPCI, baseline_feedflow, compute_extra_chemical, adjust_recycle
+# from biorefineries.make_a_biorefinery.utils import CEPCI, baseline_feedflow, compute_extra_chemical, adjust_recycle
 from biosteam.units.decorators import cost
-from biosteam.units.design_tools import size_batch
+# from biosteam.units.design_tools import size_batch
 import thermosteam as tmo
 import biosteam as bst
 import numpy as np
