@@ -242,15 +242,54 @@ class ED(bst.Unit):
         A_m = total_moles_to_transfer / (total_flux * self.t)
         return A_m
 
+    # def _run(self):
+    #     inf_dc, inf_ac = self.ins
+    #     eff_dc, eff_ac = self.outs
+
+    #     total_initial_vfa = sum(inf_dc.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
+    #     total_vfa_to_transfer = total_initial_vfa * self.target_ratio
+
+    #     I = self.j * self.A_m
+    #     J_T_dict = self.calculate_flux(I)
     def _run(self):
         inf_dc, inf_ac = self.ins
         eff_dc, eff_ac = self.outs
 
-        total_initial_vfa = sum(inf_dc.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
-        total_vfa_to_transfer = total_initial_vfa * self.target_ratio
+        # Calculate initial VFA amounts in DC and AC
+        total_initial_vfa_dc = sum(inf_dc.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
+        total_initial_vfa_ac = sum(inf_ac.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
 
+        # Calculate target VFA amounts for AC and DC after 24 hours
+        target_vfa_ac = total_initial_vfa_dc * self.target_ratio
+        target_vfa_dc = total_initial_vfa_dc * (1 - self.target_ratio)
+
+        # Total moles to transfer from DC to AC
+        total_vfa_to_transfer = target_vfa_ac - total_initial_vfa_ac
+
+        # Calculate required membrane area
         I = self.j * self.A_m
-        J_T_dict = self.calculate_flux(I)
+        J_T_dict = {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
+        total_flux = sum(J_T_dict.values())
+        self.A_m = self.calculate_membrane_area(total_vfa_to_transfer, total_flux)
+
+        # Update effluent concentrations
+        for ion in self.CE_dict:
+            if ion == 'LacticAcid':
+                eff_ac.imol[ion] = inf_ac.imol[ion]
+                eff_dc.imol[ion] = inf_dc.imol[ion]
+                continue
+
+            available_amount_dc = inf_dc.imol[ion]
+            n_transferred = J_T_dict[ion] * self.A_m * self.t
+
+            # Adjust transfer amount based on target ratio
+            actual_transfer = min(n_transferred, available_amount_dc, total_vfa_to_transfer)
+            eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer
+            eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer
+
+        # Water remains unchanged
+        eff_dc.imol['Water'] = inf_dc.imol['Water']
+        eff_ac.imol['Water'] = inf_ac.imol['Water']
         
         # Method 1
         # 이온별 이동량을 계산하고 전체 비율을 맞추기 위한 조정
@@ -281,32 +320,32 @@ class ED(bst.Unit):
 
         # Method 2
         # 이동량 추적
-        total_transferred_vfa = 0  # 실제 이동된 VFA 총량
+        # total_transferred_vfa = 0  # 실제 이동된 VFA 총량
     
-        for ion in self.CE_dict:
-            available_amount = inf_dc.imol[ion]  # DC에서 사용할 수 있는 양
-            n_transferred = J_T_dict[ion] * self.A_m * self.t  # 해당 이온의 이동량
+        # for ion in self.CE_dict:
+        #     available_amount = inf_dc.imol[ion]  # DC에서 사용할 수 있는 양
+        #     n_transferred = J_T_dict[ion] * self.A_m * self.t  # 해당 이온의 이동량
     
-            # 목표를 초과하지 않도록 이동량 조정 (Lactic Acid 제외)
-            if ion != 'LacticAcid' and total_transferred_vfa < total_vfa_to_transfer:
-                # 이동량 조정 (목표량을 초과하지 않도록)
-                remaining_transfer_capacity = total_vfa_to_transfer - total_transferred_vfa
-                actual_transfer = min(n_transferred, available_amount, remaining_transfer_capacity)
-            else:
-                # Lactic Acid는 제한 없이 이동 가능
-                actual_transfer = min(n_transferred, available_amount)
+        #     # 목표를 초과하지 않도록 이동량 조정 (Lactic Acid 제외)
+        #     if ion != 'LacticAcid' and total_transferred_vfa < total_vfa_to_transfer:
+        #         # 이동량 조정 (목표량을 초과하지 않도록)
+        #         remaining_transfer_capacity = total_vfa_to_transfer - total_transferred_vfa
+        #         actual_transfer = min(n_transferred, available_amount, remaining_transfer_capacity)
+        #     else:
+        #         # Lactic Acid는 제한 없이 이동 가능
+        #         actual_transfer = min(n_transferred, available_amount)
     
-            # eff_ac와 eff_dc 업데이트
-            eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer  # AC로 이동
-            eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer  # DC에서 감소
+        #     # eff_ac와 eff_dc 업데이트
+        #     eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer  # AC로 이동
+        #     eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer  # DC에서 감소
     
-            # Lactic Acid 제외한 총 이동량 추적
-            if ion != 'LacticAcid':
-                total_transferred_vfa += actual_transfer
+        #     # Lactic Acid 제외한 총 이동량 추적
+        #     if ion != 'LacticAcid':
+        #         total_transferred_vfa += actual_transfer
     
-        # 물(H2O)은 이동하지 않으므로 그대로 유지
-        eff_dc.imol['Water'] = inf_dc.imol['Water']
-        eff_ac.imol['Water'] = inf_ac.imol['Water']
+        # # 물(H2O)은 이동하지 않으므로 그대로 유지
+        # eff_dc.imol['Water'] = inf_dc.imol['Water']
+        # eff_ac.imol['Water'] = inf_ac.imol['Water']
         
         # Method 3
         # total_flux = sum(J_T_dict.values())
