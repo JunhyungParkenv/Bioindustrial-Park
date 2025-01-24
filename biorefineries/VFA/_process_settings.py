@@ -22,45 +22,53 @@ def load_preferences_and_process_settings():
     Load preferences and process settings for the VFA recovery system.
     Sets default thermodynamic, economic, and environmental impact parameters.
     """
-    # Set BioSTEAM preferences
+    # --- Set BioSTEAM preferences ---
     bst.preferences.T = 298.15  # Default temperature (25°C)
+    bst.preferences.P = 101325  # Default pressure (Pa)
     bst.preferences.flow = 'kg/hr'  # Default flow rate unit
-    bst.preferences.N = 4  # Decimal precision
-    bst.preferences.P = 'atm'  # Default pressure unit
-    bst.preferences.composition = True
-    bst.preferences.light_mode()
-    bst.preferences.save()
+    bst.preferences.N = 4  # Decimal precision for outputs
+    bst.preferences.composition = True  # Display stream compositions
+    bst.preferences.light_mode()  # Use light mode for reports
+    bst.preferences.save()  # Save preferences globally
 
-    # Set process economic and LCA indicators
+    # --- Set process economic settings ---
     bst.settings.CEPCI = 541.7  # CEPCI (Chemical Engineering Plant Cost Index, 2016 baseline)
+    bst.settings.electricity_price = price['electricity']  # Electricity price ($/kWh)
+
+    # --- Set environmental impact indicators ---
+    # Define GWP (Global Warming Potential) as the main impact category
     bst.settings.define_impact_indicator(key='GWP', units='kg CO2-eq')
-    bst.settings.electricity_price = price['electricity']  # Electricity price
     bst.settings.set_electricity_CF('GWP', GWP_CFs['electricity'], basis='kWhr', units='kg CO2-eq')
 
-    # Define heating agents
+    # --- Configure heating agents ---
     lps = bst.HeatUtility.get_heating_agent('low_pressure_steam')
     mps = bst.HeatUtility.get_heating_agent('medium_pressure_steam')
     hps = bst.HeatUtility.get_heating_agent('high_pressure_steam')
 
-    mps.T = 233 + 273.15  # Medium-pressure steam temperature
-    hps.T = 266 + 273.15  # High-pressure steam temperature
+    # Update steam temperatures (in Kelvin)
+    lps.T = 152 + 273.15  # Low-pressure steam
+    mps.T = 233 + 273.15  # Medium-pressure steam
+    hps.T = 266 + 273.15  # High-pressure steam
 
-    # Define cooling agents
+    # --- Configure cooling agents ---
     cooling_water = bst.HeatUtility.get_cooling_agent('cooling_water')
     cooling_water.T = 28 + 273.15  # Cooling water supply temperature
-    cooling_water.T_limit = cooling_water.T + 9  # Max temperature increase
-    cooling_water.regeneration_price = 0  # Regeneration cost
+    cooling_water.T_limit = cooling_water.T + 9  # Maximum temperature increase
+    cooling_water.regeneration_price = 0  # Regeneration cost for cooling water
 
     chilled_water = bst.HeatUtility.get_cooling_agent('chilled_water')
-    chilled_water.heat_transfer_price = 0  # Cost of chilled water
+    chilled_water.T = 5 + 273.15  # Chilled water supply temperature
+    chilled_water.heat_transfer_price = 0.00002  # Heat transfer cost ($/kWh)
 
-    # Set prices for heat transfer
+    # --- Set cost parameters for heat agents ---
     for agent in (lps, mps, hps, cooling_water, chilled_water):
         agent.heat_transfer_price = agent.regeneration_price = 0
 
-    # Set thermo for the simulation
+    # --- Load thermodynamic properties ---
+    # Ensure the chemical set (`chems`) is properly compiled before setting thermo
+    if not chems.compiled:
+        chems.compile()
     tmo.settings.set_thermo(chems)
-
 
 # =============================================================================
 # Utility Agents for Heating and Cooling
