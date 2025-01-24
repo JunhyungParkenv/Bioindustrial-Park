@@ -186,6 +186,7 @@ VFA_sys.diagram('cluster', number=True, format='png')
 VFA_sys.simulate()
 VFA_sys.show()
 #%%
+'''
 # ---------------------------
 # TEA
 # ---------------------------
@@ -253,3 +254,4 @@ simulate_and_print()
 # 다이어그램 출력
 # ---------------------------
 VFA_sys.diagram('cluster')
+'''
