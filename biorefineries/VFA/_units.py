@@ -251,22 +251,31 @@ class ED(bst.Unit):
 
         I = self.j * self.A_m
         J_T_dict = self.calculate_flux(I)
-        total_flux = sum(J_T_dict.values())
-
-        self.A_m = self.calculate_membrane_area(total_vfa_to_transfer, total_flux)
-
+        # 이온별 이동량을 계산하고 전체 비율을 맞추기 위한 조정
+        transferred_vfa = 0  # 실제 이동된 전체 VFA 양
         for ion in self.CE_dict:
-            n_transferred = J_T_dict[ion] * self.A_m * self.t
-            available_amount = inf_dc.imol[ion]
+            if ion == 'LacticAcid':  # LacticAcid는 이동에서 제외
+                continue
+            
+            # 각 이온의 이동량 계산
+            n_transferred = J_T_dict[ion] * self.A_m * self.t  # 이온당 이동량
+            available_amount = inf_dc.imol[ion]  # DC에 있는 이온의 초기 양
+    
+            # 이온의 실제 이동량 (CE 및 전체 목표 비율 반영)
+            # `n_transferred`와 `total_vfa_to_transfer`의 비율 조정
             actual_transfer = min(n_transferred, available_amount)
-
-            # eff_ac.imol[ion] += actual_transfer
-            # eff_dc.imol[ion] -= actual_transfer
+            actual_transfer = actual_transfer * (total_vfa_to_transfer / total_initial_vfa)
+    
+            # 실제 이동량 업데이트
             eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer
             eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer
-            
-        # eff_dc.imol['Water'] = inf_dc.imol['Water']
-        # eff_ac.imol['Water'] = inf_ac.imol['Water']
+    
+            # 실제 이동된 전체 VFA 양 업데이트
+            transferred_vfa += actual_transfer
+    
+        # 물(H2O)은 이동하지 않으므로 그대로 유지
+        eff_dc.imol['Water'] = inf_dc.imol['Water']
+        eff_ac.imol['Water'] = inf_ac.imol['Water']
         
     _units = {
         'Membrane area': 'm^2',
