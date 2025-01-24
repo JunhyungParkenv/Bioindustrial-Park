@@ -251,31 +251,79 @@ class ED(bst.Unit):
 
         I = self.j * self.A_m
         J_T_dict = self.calculate_flux(I)
+        
         # 이온별 이동량을 계산하고 전체 비율을 맞추기 위한 조정
-        transferred_vfa = 0  # 실제 이동된 전체 VFA 양
-        for ion in self.CE_dict:
-            if ion == 'LacticAcid':  # LacticAcid는 이동에서 제외
-                continue
+        # transferred_vfa = 0  # 실제 이동된 전체 VFA 양
+        # for ion in self.CE_dict:
+        #     if ion == 'LacticAcid':  # LacticAcid는 이동에서 제외
+        #         continue
             
-            # 각 이온의 이동량 계산
-            n_transferred = J_T_dict[ion] * self.A_m * self.t  # 이온당 이동량
-            available_amount = inf_dc.imol[ion]  # DC에 있는 이온의 초기 양
+        #     # 각 이온의 이동량 계산
+        #     n_transferred = J_T_dict[ion] * self.A_m * self.t  # 이온당 이동량
+        #     available_amount = inf_dc.imol[ion]  # DC에 있는 이온의 초기 양
+        
+        #     # 이온의 실제 이동량 (CE 및 전체 목표 비율 반영)
+        #     # `n_transferred`와 `total_vfa_to_transfer`의 비율 조정
+        #     actual_transfer = min(n_transferred, available_amount)
+        #     actual_transfer = actual_transfer * (total_vfa_to_transfer / total_initial_vfa)
+        
+        #     # 실제 이동량 업데이트
+        #     eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer
+        #     eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer
+        
+        #     # 실제 이동된 전체 VFA 양 업데이트
+        #     transferred_vfa += actual_transfer
+        
+        # # 물(H2O)은 이동하지 않으므로 그대로 유지
+        # eff_dc.imol['Water'] = inf_dc.imol['Water']
+        # eff_ac.imol['Water'] = inf_ac.imol['Water']
+
+
+        # 이동량 추적
+        total_transferred_vfa = 0  # 실제 이동된 VFA 총량
     
-            # 이온의 실제 이동량 (CE 및 전체 목표 비율 반영)
-            # `n_transferred`와 `total_vfa_to_transfer`의 비율 조정
-            actual_transfer = min(n_transferred, available_amount)
-            actual_transfer = actual_transfer * (total_vfa_to_transfer / total_initial_vfa)
+        for ion in self.CE_dict:
+            available_amount = inf_dc.imol[ion]  # DC에서 사용할 수 있는 양
+            n_transferred = J_T_dict[ion] * self.A_m * self.t  # 해당 이온의 이동량
     
-            # 실제 이동량 업데이트
-            eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer
-            eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer
+            # 목표를 초과하지 않도록 이동량 조정 (Lactic Acid 제외)
+            if ion != 'LacticAcid' and total_transferred_vfa < total_vfa_to_transfer:
+                # 이동량 조정 (목표량을 초과하지 않도록)
+                remaining_transfer_capacity = total_vfa_to_transfer - total_transferred_vfa
+                actual_transfer = min(n_transferred, available_amount, remaining_transfer_capacity)
+            else:
+                # Lactic Acid는 제한 없이 이동 가능
+                actual_transfer = min(n_transferred, available_amount)
     
-            # 실제 이동된 전체 VFA 양 업데이트
-            transferred_vfa += actual_transfer
+            # eff_ac와 eff_dc 업데이트
+            eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer  # AC로 이동
+            eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer  # DC에서 감소
+    
+            # Lactic Acid 제외한 총 이동량 추적
+            if ion != 'LacticAcid':
+                total_transferred_vfa += actual_transfer
     
         # 물(H2O)은 이동하지 않으므로 그대로 유지
         eff_dc.imol['Water'] = inf_dc.imol['Water']
         eff_ac.imol['Water'] = inf_ac.imol['Water']
+
+        # total_flux = sum(J_T_dict.values())
+
+        # self.A_m = self.calculate_membrane_area(total_vfa_to_transfer, total_flux)
+
+        # for ion in self.CE_dict:
+        #     n_transferred = J_T_dict[ion] * self.A_m * self.t
+        #     available_amount = inf_dc.imol[ion]
+        #     actual_transfer = min(n_transferred, available_amount)
+
+        #     # eff_ac.imol[ion] += actual_transfer
+        #     # eff_dc.imol[ion] -= actual_transfer
+            
+        #     eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer
+        #     eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer
+            
+        # eff_dc.imol['Water'] = inf_dc.imol['Water']
+        # eff_ac.imol['Water'] = inf_ac.imol['Water']
         
     _units = {
         'Membrane area': 'm^2',
