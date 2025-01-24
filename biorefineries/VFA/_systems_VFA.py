@@ -60,11 +60,22 @@ bst.main_flowsheet.set_flowsheet(flowsheet)
 # feedstock.imol['Water'] = 154570.91 / chems.Water.MW  # kg -> kmol
 # feedstock.imol['Glucose'] = 3154.51 / chems.Glucose.MW  # kg -> kmol
 # %% System Definition
+# @SystemFactory(
+#     ID='VFA_sys',
+#     ins=[dict(ID='feedstock', units='kg/hr')],
+#     outs=[dict(ID='stored_vfa', units='kg/hr'),
+#           dict(ID='waste_stream', units='kg/hr')]
+# )
 @SystemFactory(
     ID='VFA_sys',
     ins=[dict(ID='feedstock', units='kg/hr')],
-    outs=[dict(ID='stored_vfa', units='kg/hr'),
-          dict(ID='waste_stream', units='kg/hr')]
+    outs=[
+        dict(ID='stored_vfa', units='kg/hr'),     # 저장된 VFA
+        dict(ID='waste_stream', units='kg/hr'),  # 배출수(폐수)
+        dict(ID='evaporated_water', units='kg/hr'),  # 증발된 물
+        dict(ID='biogas', units='kg/hr'),        # 기체 배출물 (메탄, CO2 등)
+        dict(ID='U302_cell_mass', units='kg/hr')    # 고체 폐기물 (세포 잔재물 등)
+    ]
 )
 def create_VFA_sys(ins, outs):
     """
@@ -72,7 +83,7 @@ def create_VFA_sys(ins, outs):
     """
     # Define Input and Output Streams
     feedstock = ins[0]
-    stored_vfa, waste_stream = outs
+    stored_vfa, waste_stream, evaporated_water, biogas, U302_cell_mass = outs
 
     # --- Feedstock Initialization ---
     feedstock.imass['Water'] = 154570.91
@@ -80,7 +91,7 @@ def create_VFA_sys(ins, outs):
     feedstock.price = 0.1  # Price per kg
 
     # --- 1. Anaerobic Digestion (UASB Reactor) ---
-    R101 = _units.UASB('R101', ins=feedstock, outs=('vfa_solution', 'biogas'))
+    R101 = _units.UASB('R101', ins=feedstock, outs=('vfa_solution', biogas))
     
     print("R101 outputs:")
     print(f"VFA solution: {R101.outs[0].show()}")
@@ -90,9 +101,9 @@ def create_VFA_sys(ins, outs):
     U302 = _units.CellMassFilter(
         'U302',
         ins=R101-0,  # vfa_solution
-        outs=('U302_cell_mass', 'vfa_filtered'),
-        moisture_content=0.01,
-        split=0.01
+        outs=(U302_cell_mass, 'vfa_filtered'),
+        moisture_content=None,
+        split=0
     )
     
     print("U302 outputs:")
@@ -140,7 +151,7 @@ def create_VFA_sys(ins, outs):
     E101 = bst.MultiEffectEvaporator(
         'E101',
         ins=T302-0,  # AC Tank output to MEE
-        outs=('vfa_evaporated', 'evaporated_water'),
+        outs=('vfa_evaporated', evaporated_water),
         V=0.1,
         V_definition='First-effect',
         P=(101325, 73581, 50892, 32777)
@@ -170,7 +181,7 @@ def create_VFA_sys(ins, outs):
 #%%
 # VFA System
 VFA_sys = create_VFA_sys()
-VFA_sys.diagram()
+VFA_sys.diagram('cluster', number=True, format='png')
 #%%
 VFA_sys.simulate()
 VFA_sys.show()
