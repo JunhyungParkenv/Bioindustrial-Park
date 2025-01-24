@@ -23,8 +23,8 @@ def load_preferences_and_process_settings():
     Sets default thermodynamic, economic, and environmental impact parameters.
     """
     # --- Set BioSTEAM preferences ---
-    bst.preferences.T = 298.15  # Default temperature (25°C)
-    bst.preferences.P = 101325  # Default pressure (Pa)
+    bst.preferences.T = "298.15 K"  # Default temperature (25°C)
+    bst.preferences.P = "1 atm"  # Default pressure (Pa)
     bst.preferences.flow = 'kg/hr'  # Default flow rate unit
     bst.preferences.N = 4  # Decimal precision for outputs
     bst.preferences.composition = True  # Display stream compositions
