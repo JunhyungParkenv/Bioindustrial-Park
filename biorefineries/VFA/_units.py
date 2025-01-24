@@ -225,7 +225,7 @@ class ED(bst.Unit):
         super().__init__(ID, ins, outs, thermo=thermo)
         self.CE_dict = CE_dict or {
             'AceticAcid': 0.164472, 'PropionicAcid': 0.082236, 'ButyricAcid': 0.059,
-            'ValericAcid': 0.063118, 'LacticAcid': 0.082236
+            'ValericAcid': 0.063118, 'LacticAcid': 0.082236, 'Water': 0.0
         }
         self.j = j
         self.A_m = A_m if A_m is not None else 1.0
