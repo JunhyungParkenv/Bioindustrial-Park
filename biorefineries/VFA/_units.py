@@ -252,6 +252,7 @@ class ED(bst.Unit):
         I = self.j * self.A_m
         J_T_dict = self.calculate_flux(I)
         
+        # Method 1
         # 이온별 이동량을 계산하고 전체 비율을 맞추기 위한 조정
         # transferred_vfa = 0  # 실제 이동된 전체 VFA 양
         # for ion in self.CE_dict:
@@ -278,7 +279,7 @@ class ED(bst.Unit):
         # eff_dc.imol['Water'] = inf_dc.imol['Water']
         # eff_ac.imol['Water'] = inf_ac.imol['Water']
 
-
+        # Method 2
         # 이동량 추적
         total_transferred_vfa = 0  # 실제 이동된 VFA 총량
     
@@ -306,7 +307,8 @@ class ED(bst.Unit):
         # 물(H2O)은 이동하지 않으므로 그대로 유지
         eff_dc.imol['Water'] = inf_dc.imol['Water']
         eff_ac.imol['Water'] = inf_ac.imol['Water']
-
+        
+        # Method 3
         # total_flux = sum(J_T_dict.values())
 
         # self.A_m = self.calculate_membrane_area(total_vfa_to_transfer, total_flux)
