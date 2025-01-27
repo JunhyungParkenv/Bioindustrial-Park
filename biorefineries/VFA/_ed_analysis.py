@@ -120,8 +120,8 @@ def analyze_ed_tank_relationships(ed_unit, dc_tank, ac_tank):
         V_ac = np.linspace(min(V_ac) - 10, max(V_ac) + 10, len(V_ac))  # Add slight variation
 
     # Create meshgrid for contour
-    j_grid = np.linspace(min(J) * 0.5, max(J) * 3, 50)  # x축 범위를 3배로 확장
-    v_ac_grid = np.linspace(min(V_ac) * 0.5, max(V_ac) * 3, 50)  # y축 범위를 3배로 확장
+    j_grid = np.linspace(min(J), max(J) *1.5, 50)
+    v_ac_grid = np.linspace(min(V_ac), max(V_ac) *1.01, 50)
     j_mesh, v_ac_mesh = np.meshgrid(j_grid, v_ac_grid)
 
     # Replace griddata with a simple interpolation
@@ -131,7 +131,7 @@ def analyze_ed_tank_relationships(ed_unit, dc_tank, ac_tank):
 
     # Plot the contour
     plt.figure(figsize=(10, 6))
-    contour = plt.contourf(j_mesh, v_ac_mesh, a_m_mesh, cmap="summer", levels=20)  # "summer" 컬러맵 (노-초)
+    contour = plt.contourf(j_mesh, v_ac_mesh, a_m_mesh, cmap="plasma", levels=20)
     cbar = plt.colorbar(contour)
     cbar.set_label("Membrane Area [m²]", fontsize=12)
 
@@ -145,7 +145,7 @@ def analyze_ed_tank_relationships(ed_unit, dc_tank, ac_tank):
     # Add labels and title
     plt.xlabel("Current Density (j) [A/m²]", fontsize=14, fontweight="bold")
     plt.ylabel("AC Tank Volume [m³]", fontsize=14, fontweight="bold")
-    plt.title("AC Tank Volume and Membrane Area vs. Current Density (Contour Plot)", fontsize=16, fontweight="bold")
+    plt.title("AC Tank Volume vs. Membrane Area vs. Current Density", fontsize=16, fontweight="bold")
     plt.legend(fontsize=12)
     plt.grid(True)
     plt.show()
