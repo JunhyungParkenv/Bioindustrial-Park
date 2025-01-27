@@ -242,55 +242,51 @@ class ED(bst.Unit):
         Calculate the required membrane area based on total moles to transfer, 
         AC tank volume, and flux.
         """
-        c_ac = total_moles_to_transfer / v_ac  # Calculate target AC concentration
-        A_m = c_ac * v_ac / (total_flux * self.t)  # Membrane area calculation
+        A_m = total_moles_to_transfer / (total_flux * self.t)
         return A_m
 
     def _run(self):
         inf_dc, inf_ac = self.ins
         eff_dc, eff_ac = self.outs
 
-        # Calculate total initial moles in DC Tank
+        # DC Tank 정보
+        v_dc = inf_dc.F_vol * 24  # DC Tank 부피 (체류 시간: 24시간)
         total_initial_vfa_dc = sum(inf_dc.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
-        c_dc = total_initial_vfa_dc / inf_dc.F_vol  # DC Tank concentration
+        c_dc = total_initial_vfa_dc / v_dc  # DC Tank 농도 (mol/m³)
 
-        # Calculate target AC Tank concentration
+        # AC Tank 목표 설정
+        v_ac = inf_ac.F_vol * 6  # AC Tank 부피 (체류 시간: 6시간)
         c_ac_target = self.target_ratio * c_dc
+        total_vfa_to_transfer = c_ac_target * v_ac - sum(inf_ac.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
 
-        # Calculate total moles to transfer for target AC Tank concentration
-        v_ac = self.outs[1].F_vol  # AC Tank volume
-        total_vfa_to_transfer = c_ac_target * v_ac - sum(inf_ac.imol[ion] for ion in self.CE_dict)
-
-        # Calculate current and flux
-        I = self.j * self.A_m  # Total current
+        # 총 전류와 막 면적 계산
+        I = self.j * self.A_m  # 총 전류
         J_T_dict = self.calculate_flux(I)
-
-        # Update membrane area (AC Tank volume considered)
         total_flux = sum(J_T_dict.values())
         self.A_m = self.calculate_membrane_area(total_vfa_to_transfer, v_ac, total_flux)
 
-        # Update effluent streams
+        # Effluent 농도 업데이트
         total_transferred_vfa = 0
         for ion in self.CE_dict:
-            available_amount = inf_dc.imol[ion]  # DC Tank available amount
-            n_transferred = J_T_dict[ion] * self.A_m * self.t  # Moles transferred for this ion
-            
-            # Adjust transferred moles to respect the target ratio
+            available_amount = inf_dc.imol[ion]  # DC Tank에서 사용 가능한 이온 양
+            n_transferred = J_T_dict[ion] * self.A_m * self.t  # 해당 이온 이동량
+
+            # 이동량 조정 (목표 비율 초과하지 않도록)
             if ion != 'LacticAcid' and total_transferred_vfa < total_vfa_to_transfer:
                 remaining_transfer_capacity = total_vfa_to_transfer - total_transferred_vfa
                 actual_transfer = min(n_transferred, available_amount, remaining_transfer_capacity)
             else:
                 actual_transfer = min(n_transferred, available_amount)
 
-            # Update AC and DC effluent compositions
+            # Effluent 업데이트
             eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer
             eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer
 
-            # Track total transferred VFA
+            # VFA 이동량 누적
             if ion != 'LacticAcid':
                 total_transferred_vfa += actual_transfer
 
-        # Water remains unchanged
+        # 물(H2O)은 이동하지 않으므로 그대로 유지
         eff_dc.imol['Water'] = inf_dc.imol['Water']
         eff_ac.imol['Water'] = inf_ac.imol['Water']
 
@@ -312,6 +308,7 @@ class ED(bst.Unit):
         D['System resistance'] = self.R
         D['System voltage'] = D['Total current'] * self.R
         D['Power consumption'] = D['System voltage'] * D['Total current']
+
         
 #%% Crystallization (BatchCrystallizer)
 #%%
