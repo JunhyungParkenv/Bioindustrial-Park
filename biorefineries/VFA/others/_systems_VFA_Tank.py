@@ -122,60 +122,41 @@ def create_VFA_sys(ins, outs):
     print(f"inf_dc: {S302.outs[0].show()}")
     print(f"inf_ac: {S302.outs[1].show()}")
 
-    # # --- 3. Electrodialysis Separation ---
-    # S401 = _units.ED(
-    #     'S401',
-    #     ins=(S302-0, S302-1),  # inf_dc, inf_ac
-    #     outs=('dc_output', 'ac_output'),  # Outputs for DC and AC tanks
-    #     j=11.375,  # Current density
-    #     t=24*3600,  # Time
-    #     target_ratio=0.8
-    # )
-
-    # # --- 3.1 DC Tank and AC Tank ---
-    # T301 = _units.DC_Tank(
-    #     'T301',
-    #     ins=S401-0,  # dc_output
-    #     outs=waste_stream,  # DC Tank output to waste stream
-    #     tau=24  # Residence time in hours
-    # )
-
-    # T302 = _units.AC_Tank(
-    #     'T302',
-    #     ins=S401-1,  # ac_output
-    #     outs=('ac_output_to_mee'),  # AC Tank output to MEE
-    #     tau=6  # Residence time in hours
-    # )
-
-    # # --- 4. Evaporation ---
-    # E101 = bst.MultiEffectEvaporator(
-    #     'E101',
-    #     ins=T302-0,  # AC Tank output to MEE
-    #     outs=('vfa_evaporated', evaporated_water),
-    #     V=0.1,
-    #     V_definition='First-effect',
-    #     P=(101325, 73581, 50892, 32777)
-    # )
     # --- 3. Electrodialysis Separation ---
     S401 = _units.ED(
         'S401',
         ins=(S302-0, S302-1),  # inf_dc, inf_ac
-        outs=('dc_output', 'ac_output'),  # Outputs for DC and AC
+        outs=('dc_output', 'ac_output'),  # Outputs for DC and AC tanks
         j=11.375,  # Current density
-        t=24*3600,  # Time in seconds
+        t=24*3600,  # Time
         target_ratio=0.8
     )
-    
+
+    # --- 3.1 DC Tank and AC Tank ---
+    T301 = _units.DC_Tank(
+        'T301',
+        ins=S401-0,  # dc_output
+        outs=waste_stream,  # DC Tank output to waste stream
+        tau=24  # Residence time in hours
+    )
+
+    T302 = _units.AC_Tank(
+        'T302',
+        ins=S401-1,  # ac_output
+        outs=('ac_output_to_mee'),  # AC Tank output to MEE
+        tau=6  # Residence time in hours
+    )
+
     # --- 4. Evaporation ---
     E101 = bst.MultiEffectEvaporator(
         'E101',
-        ins=S401-1,  # ac_output directly to MEE
+        ins=T302-0,  # AC Tank output to MEE
         outs=('vfa_evaporated', evaporated_water),
         V=0.1,
         V_definition='First-effect',
         P=(101325, 73581, 50892, 32777)
     )
-    
+
     # --- 5. Crystallization ---
     S201 = bst.BatchCrystallizer(
         'S201',
