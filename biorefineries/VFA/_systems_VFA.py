@@ -42,8 +42,8 @@ from biorefineries.cornstover import CellulosicEthanolTEA as TemplateTEA
 tmo.settings.set_thermo(chems)
 
 # Flowsheet Initialization
-flowsheet = bst.Flowsheet('VFA_Recovery')
-bst.main_flowsheet.set_flowsheet(flowsheet)
+F = bst.Flowsheet('VFA_Recovery')
+bst.main_flowsheet.set_flowsheet(F)
 
 # %% Feedstock Stream Definition
 # Feedstock stream 수정
