@@ -10,7 +10,7 @@ from thermosteam import MultiStream
 from biosteam import Unit
 from biosteam.units import Flash, HXutility, Mixer, MixTank, Pump, \
     SolidsSeparator, StorageTank, LiquidsSplitSettler
-# from biorefineries.make_a_biorefinery.utils import CEPCI, baseline_feedflow, compute_extra_chemical, adjust_recycle
+from biorefineries.make_a_biorefinery.utils import CEPCI, baseline_feedflow, compute_extra_chemical, adjust_recycle
 from biosteam.units.decorators import cost
 # from biosteam.units.design_tools import size_batch
 import thermosteam as tmo
@@ -32,7 +32,7 @@ _Gcal2kJ = 4184e3
 # Conversion
 # =============================================================================
 # Fermentation
-# @cost('Reactor volume', 'Anaerobic Reactor', cost=500000, S=500, CE=567.3, n=0.6, BM=2.5)
+@cost('Reactor volume', 'Anaerobic Reactor', cost=500000, S=500, CE=567.3, n=0.6, BM=2.5)
 class UASB(Unit):
     _N_ins = 1
     _N_outs = 2  # VFA, Biogas
@@ -124,39 +124,39 @@ class UASB(Unit):
 # Separation
 # =============================================================================
 # Filter to separate fermentation broth into products liquid and solid
-# @cost(basis='Solids flow rate', ID='Feed tank', units='kg/hr',
-#       cost=174800, S=31815, CE=CEPCI[2010], n=0.7, BM=2.0)
-# @cost(basis='Solids flow rate', ID='Feed pump', units='kg/hr',
-#       kW=74.57, cost=18173, S=31815, CE=CEPCI[2010], n=0.8, BM=2.3)
-# @cost(basis='Pressing air flow rate', ID='Filter pressing compressor', units='kg/hr',
-#       kW=111.855, cost=75200, S=808, CE=CEPCI[2009], n=0.6, BM=1.6)
-# @cost(basis='Solids flow rate', ID='Pressing air compressor reciever', units='kg/hr',
-#       cost=8000, S=31815, CE=CEPCI[2010], n=0.7, BM=3.1)
-# @cost(basis='Drying air flow rate', ID='Filter drying compressor', units='kg/hr',
-#       kW=1043.98, cost=405000, S=12233, CE=CEPCI[2009], n=0.6, BM=1.6)
-# @cost(basis='Solids flow rate', ID='Dry air compressor reciever', units='kg/hr',
-#       cost=17000, S=31815, CE=CEPCI[2010], n=0.7, BM=3.1)
-# @cost(basis='Solids flow rate', ID='Pressure filter', units='kg/hr',
-#       cost=3294700, S=31815, CE=CEPCI[2010], n=0.8, BM=1.7)
-# @cost(basis='Solids flow rate', ID='Filtrate discharge pump', units='kg/hr',
-#       # Power not specified, based on filtrate tank discharge pump
-#       kW=55.9275, cost=13040, S=31815, CE=CEPCI[2010], n=0.8, BM=2.3)
-# @cost(basis='Solids flow rate', ID='Filtrate tank', units='kg/hr',
-#       cost=103000, S=31815, CE=CEPCI[2010], n=0.7, BM=2.0)
-# @cost(basis='Filtrate flow rate', ID='Flitrate tank agitator', units='kg/hr',
-#       kW=5.59275, cost=26000,  S=337439, CE=CEPCI[2009], n=0.5, BM=1.5)
-# @cost(basis='Solids flow rate', ID='Filtrate tank discharge pump', units='kg/hr',
-#       kW=55.9275, cost=13040, S=31815, CE=CEPCI[2010], n=0.8, BM=2.3)
-# @cost(basis='Solids flow rate', ID='Cell mass wet cake conveyor', units='kg/hr',
-#       kW=7.457, cost=70000, S=28630, CE=CEPCI[2009], n=0.8, BM=1.7)
-# @cost(basis='Solids flow rate', ID='Cell mass wet cake screw',  units='kg/hr',
-#       kW=11.1855, cost=20000, S=28630, CE=CEPCI[2009], n=0.8, BM=1.7)
-# @cost(basis='Solids flow rate', ID='Recycled water tank', units='kg/hr',
-#       cost=1520,  S=31815, CE=CEPCI[2010], n=0.7, BM=3.0)
-# @cost(basis='Solids flow rate', ID='Manifold flush pump', units='kg/hr',
-#       kW=74.57, cost=17057, S=31815, CE=CEPCI[2010], n=0.8, BM=2.3)
-# @cost(basis='Solids flow rate', ID='Cloth wash pump', units='kg/hr',
-#       kW=111.855,cost=29154, S=31815, CE=CEPCI[2010], n=0.8, BM=2.3)
+@cost(basis='Solids flow rate', ID='Feed tank', units='kg/hr',
+      cost=174800, S=31815, CE=CEPCI[2010], n=0.7, BM=2.0)
+@cost(basis='Solids flow rate', ID='Feed pump', units='kg/hr',
+      kW=74.57, cost=18173, S=31815, CE=CEPCI[2010], n=0.8, BM=2.3)
+@cost(basis='Pressing air flow rate', ID='Filter pressing compressor', units='kg/hr',
+      kW=111.855, cost=75200, S=808, CE=CEPCI[2009], n=0.6, BM=1.6)
+@cost(basis='Solids flow rate', ID='Pressing air compressor reciever', units='kg/hr',
+      cost=8000, S=31815, CE=CEPCI[2010], n=0.7, BM=3.1)
+@cost(basis='Drying air flow rate', ID='Filter drying compressor', units='kg/hr',
+      kW=1043.98, cost=405000, S=12233, CE=CEPCI[2009], n=0.6, BM=1.6)
+@cost(basis='Solids flow rate', ID='Dry air compressor reciever', units='kg/hr',
+      cost=17000, S=31815, CE=CEPCI[2010], n=0.7, BM=3.1)
+@cost(basis='Solids flow rate', ID='Pressure filter', units='kg/hr',
+      cost=3294700, S=31815, CE=CEPCI[2010], n=0.8, BM=1.7)
+@cost(basis='Solids flow rate', ID='Filtrate discharge pump', units='kg/hr',
+      # Power not specified, based on filtrate tank discharge pump
+      kW=55.9275, cost=13040, S=31815, CE=CEPCI[2010], n=0.8, BM=2.3)
+@cost(basis='Solids flow rate', ID='Filtrate tank', units='kg/hr',
+      cost=103000, S=31815, CE=CEPCI[2010], n=0.7, BM=2.0)
+@cost(basis='Filtrate flow rate', ID='Flitrate tank agitator', units='kg/hr',
+      kW=5.59275, cost=26000,  S=337439, CE=CEPCI[2009], n=0.5, BM=1.5)
+@cost(basis='Solids flow rate', ID='Filtrate tank discharge pump', units='kg/hr',
+      kW=55.9275, cost=13040, S=31815, CE=CEPCI[2010], n=0.8, BM=2.3)
+@cost(basis='Solids flow rate', ID='Cell mass wet cake conveyor', units='kg/hr',
+      kW=7.457, cost=70000, S=28630, CE=CEPCI[2009], n=0.8, BM=1.7)
+@cost(basis='Solids flow rate', ID='Cell mass wet cake screw',  units='kg/hr',
+      kW=11.1855, cost=20000, S=28630, CE=CEPCI[2009], n=0.8, BM=1.7)
+@cost(basis='Solids flow rate', ID='Recycled water tank', units='kg/hr',
+      cost=1520,  S=31815, CE=CEPCI[2010], n=0.7, BM=3.0)
+@cost(basis='Solids flow rate', ID='Manifold flush pump', units='kg/hr',
+      kW=74.57, cost=17057, S=31815, CE=CEPCI[2010], n=0.8, BM=2.3)
+@cost(basis='Solids flow rate', ID='Cloth wash pump', units='kg/hr',
+      kW=111.855,cost=29154, S=31815, CE=CEPCI[2010], n=0.8, BM=2.3)
 class CellMassFilter(SolidsSeparator):
     _N_ins = 1
     _units= {'Solids flow rate': 'kg/hr',
@@ -210,12 +210,12 @@ class CellMassFilter(SolidsSeparator):
 # --- Electrodialysis Unit (ED) ---
 # Constants
 F = 96485.3  # Faraday constant in Coulombs/mol
-# @cost('Membrane area', 'CEM', cost=100, S=1, CE=567.3, n=1, BM=2)
-# @cost('Membrane area', 'NF', cost=30, S=1, CE=567.3, n=1, BM=1.5)
-# @cost('Membrane area', 'Current Collector', cost=20, S=1, CE=567.3, n=1, BM=1.2)
-# @cost('Membrane area', 'Coating Solution', cost=0.057282, S=1, CE=567.3, n=1, BM=1.1)
-# @cost('Membrane area', 'Frames', cost=2, S=1, CE=567.3, n=1, BM=1.1)
-# @cost('Membrane area', 'Power supply', cost=20, S=1, CE=567.3, n=1, BM=1.3)
+@cost('Membrane area', 'CEM', cost=100, S=1, CE=567.3, n=1, BM=2)
+@cost('Membrane area', 'NF', cost=30, S=1, CE=567.3, n=1, BM=1.5)
+@cost('Membrane area', 'Current Collector', cost=20, S=1, CE=567.3, n=1, BM=1.2)
+@cost('Membrane area', 'Coating Solution', cost=0.057282, S=1, CE=567.3, n=1, BM=1.1)
+@cost('Membrane area', 'Frames', cost=2, S=1, CE=567.3, n=1, BM=1.1)
+@cost('Membrane area', 'Power supply', cost=20, S=1, CE=567.3, n=1, BM=1.3)
 class ED(bst.Unit):
     _N_ins = 2  # inf_dc, inf_ac
     _N_outs = 2  # eff_dc, eff_ac
@@ -349,8 +349,8 @@ class ED(bst.Unit):
 # =============================================================================
 
 # Total cost of wastewater treatment is combined into this placeholder
-# @cost(basis='Flow rate', ID='Wastewater system', units='kg/hr', 
-#       kW=7018.90125, S=393100, cost=50280080, CE=CEPCI[2010], n=0.6, BM=1)
+@cost(basis='Flow rate', ID='Wastewater system', units='kg/hr', 
+      kW=7018.90125, S=393100, cost=50280080, CE=CEPCI[2010], n=0.6, BM=1)
 class WastewaterSystemCost(Unit): pass
 
 class AnaerobicDigestion(Unit):

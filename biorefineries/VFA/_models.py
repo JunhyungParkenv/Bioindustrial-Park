@@ -15,7 +15,7 @@ from biosteam.evaluation.evaluation_tools.parameter import Setter
 from biorefineries.VFA._process_settings import price, GWP_CFs, load_preferences_and_process_settings
 from biorefineries.VFA._tea import create_vfa_tea
 from biorefineries.VFA._chemicals import chems
-from biorefineries.VFA.systems import VFA_sys, F
+from biorefineries.VFA._systems_VFA import VFA_sys, F
 
 # =============================================================================
 # System and TEA Initialization

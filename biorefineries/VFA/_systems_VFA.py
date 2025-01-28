@@ -71,7 +71,7 @@ bst.main_flowsheet.set_flowsheet(flowsheet)
     ins=[dict(ID='feedstock', units='kg/hr')],
     outs=[
         dict(ID='stored_vfa', units='kg/hr'),     # 저장된 VFA
-        dict(ID='waste_stream', units='kg/hr'),  # 배출수(폐수)
+        dict(ID='dc_output', units='kg/hr'),  # 배출수(폐수)
         dict(ID='evaporated_water', units='kg/hr'),  # 증발된 물
         dict(ID='biogas', units='kg/hr'),        # 기체 배출물 (메탄, CO2 등)
         dict(ID='U302_cell_mass', units='kg/hr')    # 고체 폐기물 (세포 잔재물 등)
@@ -83,7 +83,7 @@ def create_VFA_sys(ins, outs):
     """
     # Define Input and Output Streams
     feedstock = ins[0]
-    stored_vfa, waste_stream, evaporated_water, biogas, U302_cell_mass = outs
+    stored_vfa, dc_output, evaporated_water, biogas, U302_cell_mass = outs
 
     # --- Feedstock Initialization ---
     feedstock.imass['Water'] = 154570.91
@@ -160,7 +160,7 @@ def create_VFA_sys(ins, outs):
     S401 = _units.ED(
         'S401',
         ins=(S302-0, S302-1),  # inf_dc, inf_ac
-        outs=('dc_output', 'ac_output'),  # Outputs for DC and AC
+        outs=(dc_output, 'ac_output'),  # Outputs for DC and AC
         j=11.375,  # Current density
         t=24*3600,  # Time in seconds
         target_ratio=0.8

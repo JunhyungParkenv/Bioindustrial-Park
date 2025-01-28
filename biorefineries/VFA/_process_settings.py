@@ -17,28 +17,34 @@ __all__ = ('load_preferences_and_process_settings', 'add_utility_agent', 'price'
 # System preferences and settings
 # =============================================================================
 
-def load_preferences_and_process_settings():
+def load_preferences_and_process_settings(T='K', flow_units='kg/hr', 
+                                          N=4, P_units='1 atm', CE=541.7, 
+                                          indicator='GWP', electricity_price=0.07, 
+                                          electricity_EI=0.48):
     """
     Load preferences and process settings for the VFA recovery system.
-    Sets default thermodynamic, economic, and environmental impact parameters.
+    Default values are used unless specified.
     """
     # --- Set BioSTEAM preferences ---
-    bst.preferences.T = "298.15 K"  # Default temperature (25°C)
-    bst.preferences.P = "1 atm"  # Default pressure (Pa)
-    bst.preferences.flow = 'kg/hr'  # Default flow rate unit
-    bst.preferences.N = 4  # Decimal precision for outputs
-    bst.preferences.composition = True  # Display stream compositions
+    bst.preferences.update(
+        T=T,
+        flow=flow_units,  # Default flow rate unit
+        N=N,  # Decimal precision for outputs
+        P=P_units,  # Default pressure with units (e.g., "1 atm")
+        composition=True,  # Display stream compositions
+    )
     bst.preferences.light_mode()  # Use light mode for reports
     bst.preferences.save()  # Save preferences globally
-
+    
     # --- Set process economic settings ---
-    bst.settings.CEPCI = 541.7  # CEPCI (Chemical Engineering Plant Cost Index, 2016 baseline)
-    bst.settings.electricity_price = price['electricity']  # Electricity price ($/kWh)
+    bst.settings.CEPCI = CE  # CEPCI (Chemical Engineering Plant Cost Index)
+    bst.settings.electricity_price = electricity_price  # Electricity price ($/kWh)
 
     # --- Set environmental impact indicators ---
     # Define GWP (Global Warming Potential) as the main impact category
-    bst.settings.define_impact_indicator(key='GWP', units='kg CO2-eq')
-    bst.settings.set_electricity_CF('GWP', GWP_CFs['electricity'], basis='kWhr', units='kg CO2-eq')
+    bst.settings.define_impact_indicator(key=indicator, units='kg*CO2e')
+    bst.settings.set_electricity_CF(indicator, electricity_EI, 
+                                    basis='kWhr', units='kg*CO2e')
 
     # --- Configure heating agents ---
     lps = bst.HeatUtility.get_heating_agent('low_pressure_steam')
@@ -64,10 +70,6 @@ def load_preferences_and_process_settings():
     for agent in (lps, mps, hps, cooling_water, chilled_water):
         agent.heat_transfer_price = agent.regeneration_price = 0
 
-    # --- Load thermodynamic properties ---
-    # Ensure the chemical set (`chems`) is properly compiled before setting thermo
-    if not chems.compiled:
-        chems.compile()
     tmo.settings.set_thermo(chems)
 
 # =============================================================================
