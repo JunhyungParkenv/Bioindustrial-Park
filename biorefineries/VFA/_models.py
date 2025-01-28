@@ -25,7 +25,7 @@ from biorefineries.VFA._systems_VFA import VFA_sys, F
 load_preferences_and_process_settings()
 
 # Initialize VFA system and TEA
-sys = VFA_sys()
+sys = VFA_sys
 tea = create_vfa_tea(sys)
 
 # Set system operating hours
