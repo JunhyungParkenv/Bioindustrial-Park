@@ -198,9 +198,9 @@ def create_VFA_sys(ins, outs):
     # return [R101, U302, S401, E101, S201, T101]
 
 #%%
-# VFA System
-VFA_sys = create_VFA_sys()
-VFA_sys.diagram('cluster', number=True, format='png')
-#%%
-VFA_sys.simulate()
-VFA_sys.show()
+# # VFA System
+# VFA_sys = create_VFA_sys()
+# VFA_sys.diagram('cluster', number=True, format='png')
+# #%%
+# VFA_sys.simulate()
+# VFA_sys.show()
