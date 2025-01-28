@@ -204,71 +204,71 @@ VFA_sys.diagram('cluster', number=True, format='png')
 #%%
 VFA_sys.simulate()
 VFA_sys.show()
-#%%
-# ---------------------------
-# TEA
-# ---------------------------
-template_tea = TemplateTEA(
-    system=VFA_sys,
-    IRR=0.10,
-    duration=(2016, 2046),
-    depreciation='MACRS7',
-    income_tax=0.21,
-    operating_days=0.9 * 365,
-    construction_schedule=(0.08, 0.60, 0.32),
-    startup_months=3,
-    startup_FOCfrac=1,
-    startup_salesfrac=0.5,
-    startup_VOCfrac=0.75,
-    WC_over_FCI=0.05,
-    finance_interest=0.08,
-    finance_years=10,
-    finance_fraction=0.4,
-    labor_cost=1e6,  # Example cost
-    labor_burden=0.9,
-    property_insurance=0.007,
-    maintenance=0.03,
-)
-#%%
-# ---------------------------
-# Simulation and Results
-# ---------------------------
+# #%%
+# # ---------------------------
+# # TEA
+# # ---------------------------
+# template_tea = TemplateTEA(
+#     system=VFA_sys,
+#     IRR=0.10,
+#     duration=(2016, 2046),
+#     depreciation='MACRS7',
+#     income_tax=0.21,
+#     operating_days=0.9 * 365,
+#     construction_schedule=(0.08, 0.60, 0.32),
+#     startup_months=3,
+#     startup_FOCfrac=1,
+#     startup_salesfrac=0.5,
+#     startup_VOCfrac=0.75,
+#     WC_over_FCI=0.05,
+#     finance_interest=0.08,
+#     finance_years=10,
+#     finance_fraction=0.4,
+#     labor_cost=1e6,  # Example cost
+#     labor_burden=0.9,
+#     property_insurance=0.007,
+#     maintenance=0.03,
+# )
+# #%%
+# # ---------------------------
+# # Simulation and Results
+# # ---------------------------
 
-def simulate_and_calculate():
-    # Simulate the system
-    VFA_sys.simulate()
+# def simulate_and_calculate():
+#     # Simulate the system
+#     VFA_sys.simulate()
 
-    # Calculate CAPEX and OPEX
-    CAPEX = template_tea.FCI  # Fixed Capital Investment
-    OPEX = template_tea.AOC  # Annual Operating Cost excluding depreciation
+#     # Calculate CAPEX and OPEX
+#     CAPEX = template_tea.FCI  # Fixed Capital Investment
+#     OPEX = template_tea.AOC  # Annual Operating Cost excluding depreciation
 
-    # Print results
-    print("\n----- Economic Results -----")
-    print(f"CAPEX (Fixed Capital Investment): ${CAPEX:,.2f}")
-    print(f"OPEX (Annual Operating Cost): ${OPEX:,.2f}")
-    print("----------------------------\n")
+#     # Print results
+#     print("\n----- Economic Results -----")
+#     print(f"CAPEX (Fixed Capital Investment): ${CAPEX:,.2f}")
+#     print(f"OPEX (Annual Operating Cost): ${OPEX:,.2f}")
+#     print("----------------------------\n")
 
-simulate_and_calculate()
-#%%
-# ---------------------------
-# 시뮬레이션 실행 함수
-# ---------------------------
-def get_product_stream_MPSP():
-    for i in range(3):
-        VFA_sys.simulate()
-    for i in range(3):
-        VFA_sys.outs[0].price = template_tea.solve_price(VFA_sys.outs[0])
-    return VFA_sys.outs[0].price
+# simulate_and_calculate()
+# #%%
+# # ---------------------------
+# # 시뮬레이션 실행 함수
+# # ---------------------------
+# def get_product_stream_MPSP():
+#     for i in range(3):
+#         VFA_sys.simulate()
+#     for i in range(3):
+#         VFA_sys.outs[0].price = template_tea.solve_price(VFA_sys.outs[0])
+#     return VFA_sys.outs[0].price
 
-def simulate_and_print():
-    MPSP = get_product_stream_MPSP()
-    print('\n---------- Simulation Results ----------')
-    print(f'MPSP is ${MPSP:.3f}/kg')
-    print('----------------------------------------\n')
+# def simulate_and_print():
+#     MPSP = get_product_stream_MPSP()
+#     print('\n---------- Simulation Results ----------')
+#     print(f'MPSP is ${MPSP:.3f}/kg')
+#     print('----------------------------------------\n')
 
-simulate_and_print()
-#%%
-# ---------------------------
-# 다이어그램 출력
-# ---------------------------
-VFA_sys.diagram('cluster')
+# simulate_and_print()
+# #%%
+# # ---------------------------
+# # 다이어그램 출력
+# # ---------------------------
+# VFA_sys.diagram('cluster')
