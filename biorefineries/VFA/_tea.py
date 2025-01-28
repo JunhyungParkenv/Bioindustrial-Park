@@ -34,36 +34,23 @@ class VFA_TEA(CellulosicEthanolTEA):
                  'maintenance', '_ISBL_DPI_cached', '_FCI_cached',
                  '_utility_cost_cached', '_DPI_cached', '_TDC_cached')
 
-    def __init__(self, system, IRR, duration, depreciation, income_tax,
-                 operating_days, lang_factor, construction_schedule,
-                 startup_months, startup_FOCfrac, startup_VOCfrac,
-                 startup_salesfrac, WC_over_FCI, finance_interest,
-                 finance_years, finance_fraction, OSBL_units, warehouse,
-                 site_development, additional_piping, proratable_costs,
-                 field_expenses, construction, contingency,
-                 other_indirect_costs, labor_cost, labor_burden,
-                 property_insurance, maintenance, steam_power_depreciation,
-                 boiler_turbogenerator):
-        super().__init__(system, IRR, duration, depreciation, income_tax,
-                         operating_days, lang_factor, construction_schedule,
-                         startup_months, startup_FOCfrac, startup_VOCfrac,
-                         startup_salesfrac, WC_over_FCI, finance_interest,
-                         finance_years, finance_fraction)
-        self.OSBL_units = OSBL_units
-        self.warehouse = warehouse
-        self.site_development = site_development
-        self.additional_piping = additional_piping
-        self.proratable_costs = proratable_costs
-        self.field_expenses = field_expenses
-        self.construction = construction
-        self.contingency = contingency
-        self.other_indirect_costs = other_indirect_costs
-        self.labor_cost = labor_cost
-        self.labor_burden = labor_burden
-        self.property_insurance = property_insurance
-        self.maintenance = maintenance
-        self.steam_power_depreciation = steam_power_depreciation
-        self.boiler_turbogenerator = boiler_turbogenerator
+    def __init__(self, system, **kwargs):
+        super().__init__(system, **kwargs)
+        self.OSBL_units = kwargs.get('OSBL_units', None)
+        self.warehouse = kwargs.get('warehouse', 0.04)
+        self.site_development = kwargs.get('site_development', 0.09)
+        self.additional_piping = kwargs.get('additional_piping', 0.045)
+        self.proratable_costs = kwargs.get('proratable_costs', 0.10)
+        self.field_expenses = kwargs.get('field_expenses', 0.10)
+        self.construction = kwargs.get('construction', 0.20)
+        self.contingency = kwargs.get('contingency', 0.10)
+        self.other_indirect_costs = kwargs.get('other_indirect_costs', 0.10)
+        self.labor_cost = kwargs.get('labor_cost', 2.5e6)
+        self.labor_burden = kwargs.get('labor_burden', 0.90)
+        self.property_insurance = kwargs.get('property_insurance', 0.007)
+        self.maintenance = kwargs.get('maintenance', 0.03)
+        self.steam_power_depreciation = kwargs.get('steam_power_depreciation', 'MACRS20')
+        self.boiler_turbogenerator = kwargs.get('boiler_turbogenerator', None)
 
     @property
     def CAPEX(self):
@@ -128,49 +115,46 @@ class VFA_TEA(CellulosicEthanolTEA):
         print(f"Fixed Operating Costs (FOC): ${self._FOC(self.FCI):,.2f}")
         print("--------------------------")
 
-
-def create_vfa_tea(system, OSBL_units=None):
+def create_vfa_tea(system, **kwargs):
     """
     Factory function to create a VFA TEA instance with default parameters.
     """
-    if OSBL_units is None:
-        OSBL_units = bst.get_OSBL(system.cost_units)
-    try:
-        BT = tmo.utils.get_instance(OSBL_units, (bst.BoilerTurbogenerator, bst.Boiler))
-    except:
-        BT = None
-
+    OSBL_units = kwargs.get('OSBL_units', bst.get_OSBL(system.cost_units))
+    boiler_turbogenerator = kwargs.get(
+        'boiler_turbogenerator',
+        tmo.utils.get_instance(OSBL_units, (bst.BoilerTurbogenerator, bst.Boiler))
+    )
     vfa_tea = VFA_TEA(
         system=system,
-        IRR=0.10,
-        duration=(2023, 2043),
-        depreciation='MACRS7',
-        income_tax=0.21,
-        operating_days=350,
-        lang_factor=None,
-        construction_schedule=(0.08, 0.6, 0.32),
-        startup_months=3,
-        startup_FOCfrac=1,
-        startup_VOCfrac=0.75,
-        startup_salesfrac=0.5,
-        WC_over_FCI=0.05,
-        finance_interest=0.08,
-        finance_years=10,
-        finance_fraction=0.4,
+        IRR=kwargs.get('IRR', 0.10),
+        duration=kwargs.get('duration', (2023, 2043)),
+        depreciation=kwargs.get('depreciation', 'MACRS7'),
+        income_tax=kwargs.get('income_tax', 0.21),
+        operating_days=kwargs.get('operating_days', 350),
+        lang_factor=kwargs.get('lang_factor', None),
+        construction_schedule=kwargs.get('construction_schedule', (0.08, 0.6, 0.32)),
+        startup_months=kwargs.get('startup_months', 3),
+        startup_FOCfrac=kwargs.get('startup_FOCfrac', 1),
+        startup_VOCfrac=kwargs.get('startup_VOCfrac', 0.75),
+        startup_salesfrac=kwargs.get('startup_salesfrac', 0.5),
+        WC_over_FCI=kwargs.get('WC_over_FCI', 0.05),
+        finance_interest=kwargs.get('finance_interest', 0.08),
+        finance_years=kwargs.get('finance_years', 10),
+        finance_fraction=kwargs.get('finance_fraction', 0.4),
         OSBL_units=OSBL_units,
-        warehouse=0.04,
-        site_development=0.09,
-        additional_piping=0.045,
-        proratable_costs=0.10,
-        field_expenses=0.10,
-        construction=0.20,
-        contingency=0.10,
-        other_indirect_costs=0.10,
-        labor_cost=2.5e6,
-        labor_burden=0.90,
-        property_insurance=0.007,
-        maintenance=0.03,
-        steam_power_depreciation='MACRS20',
-        boiler_turbogenerator=BT
+        warehouse=kwargs.get('warehouse', 0.04),  # 명시적으로 기본값 설정
+        site_development=kwargs.get('site_development', 0.09),
+        additional_piping=kwargs.get('additional_piping', 0.045),
+        proratable_costs=kwargs.get('proratable_costs', 0.10),
+        field_expenses=kwargs.get('field_expenses', 0.10),
+        construction=kwargs.get('construction', 0.20),
+        contingency=kwargs.get('contingency', 0.10),
+        other_indirect_costs=kwargs.get('other_indirect_costs', 0.10),
+        labor_cost=kwargs.get('labor_cost', 2.5e6),
+        labor_burden=kwargs.get('labor_burden', 0.90),
+        property_insurance=kwargs.get('property_insurance', 0.007),
+        maintenance=kwargs.get('maintenance', 0.03),
+        steam_power_depreciation=kwargs.get('steam_power_depreciation', 'MACRS20'),
+        boiler_turbogenerator=boiler_turbogenerator
     )
     return vfa_tea
