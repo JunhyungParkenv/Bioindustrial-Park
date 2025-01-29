@@ -21,13 +21,12 @@ import biosteam as bst
 import thermosteam as tmo
 from biorefineries.cornstover import CellulosicEthanolTEA
 
-
 class VFA_TEA(CellulosicEthanolTEA):
     """
     Techno-Economic Analysis (TEA) for VFA production and separation.
     This class calculates CAPEX, OPEX, and other economic indicators.
     """
-    __slots__ = ('OSBL_units', 'warehouse', 'site_development',
+    __slots__ = ('installed_equipment_cost', 'OSBL_units', 'warehouse', 'site_development',
                  'additional_piping', 'proratable_costs', 'field_expenses',
                  'construction', 'contingency', 'other_indirect_costs',
                  'labor_cost', 'labor_burden', 'property_insurance',
@@ -35,8 +34,11 @@ class VFA_TEA(CellulosicEthanolTEA):
                  '_utility_cost_cached', '_DPI_cached', '_TDC_cached')
 
     def __init__(self, system, **kwargs):
-        super().__init__(system, **kwargs)
-        self.installed_equipment_cost = installed_equipment_cost,
+        # 'installed_equipment_cost'를 super().__init__()에 전달하지 않음
+        self.installed_equipment_cost = kwargs.pop('installed_equipment_cost', None)
+        super().__init__(system, **kwargs)  
+        
+        # 나머지 변수들 초기화
         self.OSBL_units = kwargs.get('OSBL_units', None)
         self.warehouse = kwargs.get('warehouse', 0.04)
         self.site_development = kwargs.get('site_development', 0.09)
@@ -56,11 +58,7 @@ class VFA_TEA(CellulosicEthanolTEA):
     @property
     def CAPEX(self):
         """
-        Calculate the Total Capital Investment (TCI), which includes:
-        - ISBL costs
-        - OSBL costs
-        - Indirect costs (e.g., contingency, site development)
-        - Working capital
+        Calculate the Total Capital Investment (TCI).
         """
         DPI = self.DPI
         TDC = self._TDC(DPI, self.installed_equipment_cost)
@@ -71,9 +69,7 @@ class VFA_TEA(CellulosicEthanolTEA):
     @property
     def OPEX(self):
         """
-        Calculate the Total Operating Costs (OPEX), which includes:
-        - Fixed Operating Costs (FOC)
-        - Variable Operating Costs (VOC)
+        Calculate the Total Operating Costs (OPEX).
         """
         FCI = self.FCI
         FOC = self._FOC(FCI)
@@ -85,7 +81,7 @@ class VFA_TEA(CellulosicEthanolTEA):
         Calculate the Total Depreciable Capital (TDC).
         """
         if installed_equipment_cost is None:
-            installed_equipment_cost = self.installed_equipment_cost  # 시스템에서 가져오기
+            installed_equipment_cost = self.installed_equipment_cost  # 저장된 값 사용
         indirect_costs = self._depreciable_indirect_costs(installed_equipment_cost)
         TDC = DPI + indirect_costs
         self._TDC_cached = TDC
@@ -118,19 +114,18 @@ class VFA_TEA(CellulosicEthanolTEA):
         print(f"Fixed Operating Costs (FOC): ${self._FOC(self.FCI):,.2f}")
         print("--------------------------")
 
+        print("--------------------------")
+
 def create_vfa_tea(system, **kwargs):
     """
     Factory function to create a VFA TEA instance with default parameters.
     """
     OSBL_units = kwargs.get('OSBL_units', bst.get_OSBL(system.cost_units))
-    # boiler_turbogenerator = kwargs.get(
-    #     'boiler_turbogenerator',
-    #     tmo.utils.get_instance(OSBL_units, (bst.BoilerTurbogenerator, bst.Boiler))
-    # )
-    installed_equipment_cost = kwargs.get('installed_equipment_cost', system.installed_cost)  # 시스템에서 비용 가져오기
+    installed_equipment_cost = kwargs.pop('installed_equipment_cost', system.installed_cost)  
+
     vfa_tea = VFA_TEA(
         system=system,
-        installed_equipment_cost=installed_equipment_cost,
+        installed_equipment_cost=installed_equipment_cost,  # 생성자에 직접 전달
         IRR=kwargs.get('IRR', 0.10),
         duration=kwargs.get('duration', (2023, 2043)),
         depreciation=kwargs.get('depreciation', 'MACRS7'),
@@ -147,7 +142,7 @@ def create_vfa_tea(system, **kwargs):
         finance_years=kwargs.get('finance_years', 10),
         finance_fraction=kwargs.get('finance_fraction', 0.4),
         OSBL_units=OSBL_units,
-        warehouse=kwargs.get('warehouse', 0.04),  # 명시적으로 기본값 설정
+        warehouse=kwargs.get('warehouse', 0.04),
         site_development=kwargs.get('site_development', 0.09),
         additional_piping=kwargs.get('additional_piping', 0.045),
         proratable_costs=kwargs.get('proratable_costs', 0.10),
@@ -162,4 +157,5 @@ def create_vfa_tea(system, **kwargs):
         steam_power_depreciation=kwargs.get('steam_power_depreciation', 'MACRS20'),
         boiler_turbogenerator=None
     )
+
     return vfa_tea
