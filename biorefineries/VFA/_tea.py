@@ -16,58 +16,58 @@ This module is a modified implementation of modules from the following:
 @author: Junhyung Park
 """
 
-from biosteam import TEA
-import biosteam as bst
+from biorefineries.cornstover import CellulosicEthanolTEA
 
-class VFA_TEA(TEA):
+class VFA_TEA(CellulosicEthanolTEA):
     """
-    심플한 VFA Techno-Economic Analysis (TEA) 모델.
-    CAPEX, OPEX, 에너지 비용, MPSP 계산.
+    VFA Techno-Economic Analysis (TEA) 모델.
+    기존 CellulosicEthanolTEA를 확장하여 VFA 공정에 맞게 수정.
     """
-    __slots__ = ('labor_cost', 'maintenance', 'property_insurance', 'utility_cost')
-
-    def __init__(self, system, labor_cost=2.5e6, maintenance=0.03, property_insurance=0.007):
-        super().__init__(system, IRR=0.10, duration=(2023, 2043), depreciation='MACRS7',
-                         income_tax=0.21, operating_days=350, lang_factor=None,
-                         construction_schedule=(0.08, 0.6, 0.32), startup_months=3,
-                         startup_FOCfrac=1, startup_VOCfrac=0.75, startup_salesfrac=0.5,
-                         WC_over_FCI=0.05, finance_interest=0.08, finance_years=10, finance_fraction=0.4)
-
-        self.labor_cost = labor_cost
-        self.maintenance = maintenance
-        self.property_insurance = property_insurance
-        self.utility_cost = 0  # 에너지 비용 기본값
-
+    def __init__(self, system, **kwargs):
+        super().__init__(
+            system=system, 
+            IRR=0.10, 
+            duration=(2023, 2043),
+            depreciation='MACRS7', 
+            income_tax=0.21,
+            operating_days=350,
+            lang_factor=None, 
+            construction_schedule=(0.08, 0.60, 0.32),
+            startup_months=3, 
+            startup_FOCfrac=1,
+            startup_salesfrac=0.5,
+            startup_VOCfrac=0.75,
+            WC_over_FCI=0.05,
+            finance_interest=0.08,
+            finance_years=10,
+            finance_fraction=0.6,
+            OSBL_units=kwargs.get('OSBL_units', None),
+            warehouse=0.04, 
+            site_development=0.09, 
+            additional_piping=0.045,
+            proratable_costs=0.10,
+            field_expenses=0.10,
+            construction=0.20,
+            contingency=0.10,
+            other_indirect_costs=0.10, 
+            labor_cost=2.5e6,
+            labor_burden=0.90,
+            property_insurance=0.007, 
+            maintenance=0.03,
+            steam_power_depreciation='MACRS20',
+            boiler_turbogenerator=None
+        )
+    
     @property
     def CAPEX(self):
-        """ 총 고정 투자 비용 (Fixed Capital Investment, FCI) """
-        installed_equipment_cost = self.system.installed_cost
-        indirect_costs = installed_equipment_cost * (self.maintenance + self.property_insurance)
-        return installed_equipment_cost + indirect_costs
-
-    @property
-    def OPEX(self):
-        """ 연간 운영 비용 (Fixed + Variable Operating Cost) """
-        return self.labor_cost + self.maintenance * self.CAPEX + self.utility_cost
+        """ 수정된 CAPEX 계산 """
+        return self.installed_equipment_cost + self.installed_equipment_cost * 0.1  # 10% 추가 비용
 
     @property
     def MPSP(self):
-        """ 최소 제품 판매 가격 (Minimum Product Selling Price, MPSP) """
-        production = sum([s.F_mass for s in self.system.products])  # 전체 제품의 연간 생산량 (kg/yr)
-        return self.OPEX / production if production > 0 else float('inf')
+        """ 최소 제품 판매 가격 (MPSP) 수정 """
+        return super().MPSP * 1.1  # 10% 가격 증가 반영
 
-    def set_utility_cost(self, cost):
-        """ 유틸리티 비용 설정 (예: 전기, 스팀 비용) """
-        self.utility_cost = cost
-
-    def report(self):
-        """ TEA 결과 요약 """
-        print("----- VFA TEA Report -----")
-        print(f"Total Capital Investment (CAPEX): ${self.CAPEX:,.2f}")
-        print(f"Total Operating Costs (OPEX): ${self.OPEX:,.2f}")
-        print(f"Minimum Product Selling Price (MPSP): ${self.MPSP:,.2f} per kg")
-        print("--------------------------")
-
-def create_vfa_tea(system):
+def create_vfa_tea(system, OSBL_units=None):
     """ VFA TEA 객체 생성 """
-    return VFA_TEA(system)
+    return VFA_TEA(system, OSBL_units=OSBL_units)
