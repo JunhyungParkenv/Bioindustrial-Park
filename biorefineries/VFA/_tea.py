@@ -36,6 +36,7 @@ class VFA_TEA(CellulosicEthanolTEA):
 
     def __init__(self, system, **kwargs):
         super().__init__(system, **kwargs)
+        self.installed_equipment_cost = installed_equipment_cost  # ✅ 생성자에서 직접 초기화
         self.OSBL_units = kwargs.get('OSBL_units', None)
         self.warehouse = kwargs.get('warehouse', 0.04)
         self.site_development = kwargs.get('site_development', 0.09)
@@ -129,6 +130,7 @@ def create_vfa_tea(system, **kwargs):
     installed_equipment_cost = kwargs.get('installed_equipment_cost', system.installed_cost)  # 시스템에서 비용 가져오기
     vfa_tea = VFA_TEA(
         system=system,
+        installed_equipment_cost=installed_equipment_cost,
         IRR=kwargs.get('IRR', 0.10),
         duration=kwargs.get('duration', (2023, 2043)),
         depreciation=kwargs.get('depreciation', 'MACRS7'),
@@ -160,5 +162,4 @@ def create_vfa_tea(system, **kwargs):
         steam_power_depreciation=kwargs.get('steam_power_depreciation', 'MACRS20'),
         boiler_turbogenerator=None
     )
-    vfa_tea.installed_equipment_cost = installed_equipment_cost  # 시스템에서 가져온 값을 저장
     return vfa_tea

@@ -39,11 +39,11 @@ sys.operating_hours = tea.operating_days * 24
 metrics = [
     Metric('VFA Yield', lambda: F.stored_vfa.F_mass / F.feedstock.F_mass, 'kg/kg'),
     Metric('Electricity Consumption', lambda: sys.get_electricity_consumption(), 'kWh/yr'),
-    # Metric('Water Use', lambda: F.cooling_water.F_mass / sys.operating_hours, 'kg/hr'),
-    Metric('Capital Investment', lambda: tea.TCI / 1e6, 'Million USD'),
-    Metric('Operating Cost', lambda: tea.AOC / 1e6, 'Million USD/yr'),
+    Metric('Capital Investment (CAPEX)', lambda: tea.CAPEX / 1e6, 'Million USD'),
+    Metric('Operating Cost (OPEX)', lambda: tea.OPEX / 1e6, 'Million USD/yr'),
     Metric('Net Production Cost', lambda: tea.solve_price(F.stored_vfa), 'USD/kg'),
     Metric('Global Warming Potential', lambda: sys.get_total_feeds_impact('GWP100') * 1e3 / sys.operating_hours, 'g CO2-eq/hr'),
+    Metric('MPSP (Minimum Product Selling Price)', lambda: tea.solve_price(F.stored_vfa), 'USD/kg'),  # MPSP 추가
 ]
 
 # =============================================================================
@@ -129,4 +129,3 @@ def run_model(N=1000, rule='L', notify_runs=10, model=model):
 # Run the model
 if __name__ == '__main__':
     run_model()
-
