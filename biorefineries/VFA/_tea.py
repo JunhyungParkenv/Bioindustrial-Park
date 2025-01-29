@@ -120,10 +120,10 @@ def create_vfa_tea(system, **kwargs):
     Factory function to create a VFA TEA instance with default parameters.
     """
     OSBL_units = kwargs.get('OSBL_units', bst.get_OSBL(system.cost_units))
-    boiler_turbogenerator = kwargs.get(
-        'boiler_turbogenerator',
-        tmo.utils.get_instance(OSBL_units, (bst.BoilerTurbogenerator, bst.Boiler))
-    )
+    # boiler_turbogenerator = kwargs.get(
+    #     'boiler_turbogenerator',
+    #     tmo.utils.get_instance(OSBL_units, (bst.BoilerTurbogenerator, bst.Boiler))
+    # )
     vfa_tea = VFA_TEA(
         system=system,
         IRR=kwargs.get('IRR', 0.10),
@@ -155,6 +155,6 @@ def create_vfa_tea(system, **kwargs):
         property_insurance=kwargs.get('property_insurance', 0.007),
         maintenance=kwargs.get('maintenance', 0.03),
         steam_power_depreciation=kwargs.get('steam_power_depreciation', 'MACRS20'),
-        boiler_turbogenerator=boiler_turbogenerator
+        boiler_turbogenerator=None
     )
     return vfa_tea
