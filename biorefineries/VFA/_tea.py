@@ -36,7 +36,7 @@ class VFA_TEA(CellulosicEthanolTEA):
 
     def __init__(self, system, **kwargs):
         super().__init__(system, **kwargs)
-        self.installed_equipment_cost = installed_equipment_cost  # ✅ 생성자에서 직접 초기화
+        self.installed_equipment_cost = installed_equipment_cost,
         self.OSBL_units = kwargs.get('OSBL_units', None)
         self.warehouse = kwargs.get('warehouse', 0.04)
         self.site_development = kwargs.get('site_development', 0.09)
