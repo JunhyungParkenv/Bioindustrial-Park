@@ -83,6 +83,8 @@ class VFA_TEA(CellulosicEthanolTEA):
         """
         Calculate the Total Depreciable Capital (TDC).
         """
+        if installed_equipment_cost is None:
+            installed_equipment_cost = self.installed_equipment_cost  # 시스템에서 가져오기
         indirect_costs = self._depreciable_indirect_costs(installed_equipment_cost)
         TDC = DPI + indirect_costs
         self._TDC_cached = TDC
@@ -124,6 +126,7 @@ def create_vfa_tea(system, **kwargs):
     #     'boiler_turbogenerator',
     #     tmo.utils.get_instance(OSBL_units, (bst.BoilerTurbogenerator, bst.Boiler))
     # )
+    installed_equipment_cost = kwargs.get('installed_equipment_cost', system.installed_cost)  # 시스템에서 비용 가져오기
     vfa_tea = VFA_TEA(
         system=system,
         IRR=kwargs.get('IRR', 0.10),
@@ -157,4 +160,5 @@ def create_vfa_tea(system, **kwargs):
         steam_power_depreciation=kwargs.get('steam_power_depreciation', 'MACRS20'),
         boiler_turbogenerator=None
     )
+    vfa_tea.installed_equipment_cost = installed_equipment_cost  # 시스템에서 가져온 값을 저장
     return vfa_tea

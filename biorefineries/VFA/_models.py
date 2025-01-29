@@ -39,7 +39,7 @@ sys.operating_hours = tea.operating_days * 24
 metrics = [
     Metric('VFA Yield', lambda: F.stored_vfa.F_mass / F.feedstock.F_mass, 'kg/kg'),
     Metric('Electricity Consumption', lambda: sys.get_electricity_consumption(), 'kWh/yr'),
-    Metric('Water Use', lambda: F.cooling_water.F_mass / sys.operating_hours, 'kg/hr'),
+    # Metric('Water Use', lambda: F.cooling_water.F_mass / sys.operating_hours, 'kg/hr'),
     Metric('Capital Investment', lambda: tea.TCI / 1e6, 'Million USD'),
     Metric('Operating Cost', lambda: tea.AOC / 1e6, 'Million USD/yr'),
     Metric('Net Production Cost', lambda: tea.solve_price(F.stored_vfa), 'USD/kg'),
