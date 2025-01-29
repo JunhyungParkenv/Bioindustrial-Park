@@ -62,6 +62,12 @@ class VFA_TEA(CellulosicEthanolTEA):
     def CAPEX(self):
         """ 수정된 CAPEX 계산 """
         return self.installed_equipment_cost + self.installed_equipment_cost * 0.1  # 10% 추가 비용
+    
+    @property
+    def OPEX(self):
+        """ 연간 운영 비용 (Fixed + Variable Operating Cost) """
+        utility_cost = self.utility_cost if hasattr(self, 'utility_cost') else 0
+        return (self.labor_cost + self.maintenance * self.CAPEX + utility_cost)
 
     @property
     def MPSP(self):
