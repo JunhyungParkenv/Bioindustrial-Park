@@ -18,147 +18,56 @@ This module is a modified implementation of modules from the following:
 
 from biosteam import TEA
 import biosteam as bst
-import thermosteam as tmo
-from biorefineries.cornstover import CellulosicEthanolTEA
 
-class VFA_TEA(CellulosicEthanolTEA):
+class VFA_TEA(TEA):
     """
-    Techno-Economic Analysis (TEA) for VFA production and separation.
-    This class calculates CAPEX, OPEX, and other economic indicators.
+    심플한 VFA Techno-Economic Analysis (TEA) 모델.
+    CAPEX, OPEX, 에너지 비용, MPSP 계산.
     """
-    __slots__ = ('installed_equipment_cost', 'OSBL_units', 'warehouse', 'site_development',
-                 'additional_piping', 'proratable_costs', 'field_expenses',
-                 'construction', 'contingency', 'other_indirect_costs',
-                 'labor_cost', 'labor_burden', 'property_insurance',
-                 'maintenance', '_ISBL_DPI_cached', '_FCI_cached',
-                 '_utility_cost_cached', '_DPI_cached', '_TDC_cached')
+    __slots__ = ('labor_cost', 'maintenance', 'property_insurance', 'utility_cost')
 
-    def __init__(self, system, **kwargs):
-        # 'installed_equipment_cost'를 super().__init__()에 전달하지 않음
-        self.installed_equipment_cost = kwargs.pop('installed_equipment_cost', None)
-        super().__init__(system, **kwargs)  
-        
-        # 나머지 변수들 초기화
-        self.OSBL_units = kwargs.get('OSBL_units', None)
-        self.warehouse = kwargs.get('warehouse', 0.04)
-        self.site_development = kwargs.get('site_development', 0.09)
-        self.additional_piping = kwargs.get('additional_piping', 0.045)
-        self.proratable_costs = kwargs.get('proratable_costs', 0.10)
-        self.field_expenses = kwargs.get('field_expenses', 0.10)
-        self.construction = kwargs.get('construction', 0.20)
-        self.contingency = kwargs.get('contingency', 0.10)
-        self.other_indirect_costs = kwargs.get('other_indirect_costs', 0.10)
-        self.labor_cost = kwargs.get('labor_cost', 2.5e6)
-        self.labor_burden = kwargs.get('labor_burden', 0.90)
-        self.property_insurance = kwargs.get('property_insurance', 0.007)
-        self.maintenance = kwargs.get('maintenance', 0.03)
-        self.steam_power_depreciation = kwargs.get('steam_power_depreciation', 'MACRS20')
-        self.boiler_turbogenerator = kwargs.get('boiler_turbogenerator', None)
+    def __init__(self, system, labor_cost=2.5e6, maintenance=0.03, property_insurance=0.007):
+        super().__init__(system, IRR=0.10, duration=(2023, 2043), depreciation='MACRS7',
+                         income_tax=0.21, operating_days=350, lang_factor=None,
+                         construction_schedule=(0.08, 0.6, 0.32), startup_months=3,
+                         startup_FOCfrac=1, startup_VOCfrac=0.75, startup_salesfrac=0.5,
+                         WC_over_FCI=0.05, finance_interest=0.08, finance_years=10, finance_fraction=0.4)
+
+        self.labor_cost = labor_cost
+        self.maintenance = maintenance
+        self.property_insurance = property_insurance
+        self.utility_cost = 0  # 에너지 비용 기본값
 
     @property
     def CAPEX(self):
-        """
-        Calculate the Total Capital Investment (TCI).
-        """
-        DPI = self.DPI
-        installed_equipment_cost = self.installed_equipment_cost
-        TDC = self._TDC(DPI, installed_equipment_cost)
-        working_capital = self.WC_over_FCI * TDC
-        TCI = TDC + working_capital
-        return TCI
+        """ 총 고정 투자 비용 (Fixed Capital Investment, FCI) """
+        installed_equipment_cost = self.system.installed_cost
+        indirect_costs = installed_equipment_cost * (self.maintenance + self.property_insurance)
+        return installed_equipment_cost + indirect_costs
 
     @property
     def OPEX(self):
-        """
-        Calculate the Total Operating Costs (OPEX).
-        """
-        installed_equipment_cost = self.installed_equipment_cost
-        TDC = self._TDC(self.DPI, installed_equipment_cost)
-        FCI = self._FCI(TDC)  # Fixed Capital Investment 계산 수정
-        FOC = self._FOC(FCI)
-        VOC = self.VOC
-        return FOC + VOC
+        """ 연간 운영 비용 (Fixed + Variable Operating Cost) """
+        return self.labor_cost + self.maintenance * self.CAPEX + self.utility_cost
 
-    def _TDC(self, DPI, installed_equipment_cost):
-        """
-        Calculate the Total Depreciable Capital (TDC).
-        """
-        if installed_equipment_cost is None:
-            installed_equipment_cost = self.installed_equipment_cost  # 저장된 값 사용
-        indirect_costs = self._depreciable_indirect_costs(installed_equipment_cost)
-        TDC = DPI + indirect_costs
-        self._TDC_cached = TDC
-        return TDC
+    @property
+    def MPSP(self):
+        """ 최소 제품 판매 가격 (Minimum Product Selling Price, MPSP) """
+        production = sum([s.F_mass for s in self.system.products])  # 전체 제품의 연간 생산량 (kg/yr)
+        return self.OPEX / production if production > 0 else float('inf')
 
-    def _depreciable_indirect_costs(self, installed_equipment_cost):
-        """
-        Calculate depreciable indirect costs such as contingency and field expenses.
-        """
-        return (self.proratable_costs + self.field_expenses
-                + self.construction + self.contingency) * self._ISBL_DPI(installed_equipment_cost)
+    def set_utility_cost(self, cost):
+        """ 유틸리티 비용 설정 (예: 전기, 스팀 비용) """
+        self.utility_cost = cost
 
-    def _FOC(self, FCI):
-        """
-        Calculate Fixed Operating Costs (FOC).
-        """
-        ISBL = self._ISBL_DPI_cached
-        return (FCI * self.property_insurance  # Property insurance
-                + ISBL * self.maintenance  # Maintenance
-                + self.labor_cost * (1 + self.labor_burden))  # Labor and burden
-
-    def generate_report(self):
-        """
-        Generate a CAPEX and OPEX report for the VFA process.
-        """
+    def report(self):
+        """ TEA 결과 요약 """
         print("----- VFA TEA Report -----")
         print(f"Total Capital Investment (CAPEX): ${self.CAPEX:,.2f}")
         print(f"Total Operating Costs (OPEX): ${self.OPEX:,.2f}")
-        print(f"Variable Operating Costs (VOC): ${self.VOC:,.2f}")
-        print(f"Fixed Operating Costs (FOC): ${self._FOC(self.FCI):,.2f}")
+        print(f"Minimum Product Selling Price (MPSP): ${self.MPSP:,.2f} per kg")
         print("--------------------------")
 
-        print("--------------------------")
-
-def create_vfa_tea(system, **kwargs):
-    """
-    Factory function to create a VFA TEA instance with default parameters.
-    """
-    OSBL_units = kwargs.get('OSBL_units', bst.get_OSBL(system.cost_units))
-    installed_equipment_cost = kwargs.pop('installed_equipment_cost', system.installed_cost)  
-
-    vfa_tea = VFA_TEA(
-        system=system,
-        installed_equipment_cost=installed_equipment_cost,  # 생성자에 직접 전달
-        IRR=kwargs.get('IRR', 0.10),
-        duration=kwargs.get('duration', (2023, 2043)),
-        depreciation=kwargs.get('depreciation', 'MACRS7'),
-        income_tax=kwargs.get('income_tax', 0.21),
-        operating_days=kwargs.get('operating_days', 350),
-        lang_factor=kwargs.get('lang_factor', None),
-        construction_schedule=kwargs.get('construction_schedule', (0.08, 0.6, 0.32)),
-        startup_months=kwargs.get('startup_months', 3),
-        startup_FOCfrac=kwargs.get('startup_FOCfrac', 1),
-        startup_VOCfrac=kwargs.get('startup_VOCfrac', 0.75),
-        startup_salesfrac=kwargs.get('startup_salesfrac', 0.5),
-        WC_over_FCI=kwargs.get('WC_over_FCI', 0.05),
-        finance_interest=kwargs.get('finance_interest', 0.08),
-        finance_years=kwargs.get('finance_years', 10),
-        finance_fraction=kwargs.get('finance_fraction', 0.4),
-        OSBL_units=OSBL_units,
-        warehouse=kwargs.get('warehouse', 0.04),
-        site_development=kwargs.get('site_development', 0.09),
-        additional_piping=kwargs.get('additional_piping', 0.045),
-        proratable_costs=kwargs.get('proratable_costs', 0.10),
-        field_expenses=kwargs.get('field_expenses', 0.10),
-        construction=kwargs.get('construction', 0.20),
-        contingency=kwargs.get('contingency', 0.10),
-        other_indirect_costs=kwargs.get('other_indirect_costs', 0.10),
-        labor_cost=kwargs.get('labor_cost', 2.5e6),
-        labor_burden=kwargs.get('labor_burden', 0.90),
-        property_insurance=kwargs.get('property_insurance', 0.007),
-        maintenance=kwargs.get('maintenance', 0.03),
-        steam_power_depreciation=kwargs.get('steam_power_depreciation', 'MACRS20'),
-        boiler_turbogenerator=None
-    )
-
-    return vfa_tea
+def create_vfa_tea(system):
+    """ VFA TEA 객체 생성 """
+    return VFA_TEA(system)
