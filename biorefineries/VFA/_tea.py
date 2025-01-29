@@ -61,7 +61,8 @@ class VFA_TEA(CellulosicEthanolTEA):
         Calculate the Total Capital Investment (TCI).
         """
         DPI = self.DPI
-        TDC = self._TDC(DPI, self.installed_equipment_cost)
+        installed_equipment_cost = self.installed_equipment_cost
+        TDC = self._TDC(DPI, installed_equipment_cost)
         working_capital = self.WC_over_FCI * TDC
         TCI = TDC + working_capital
         return TCI
@@ -71,7 +72,9 @@ class VFA_TEA(CellulosicEthanolTEA):
         """
         Calculate the Total Operating Costs (OPEX).
         """
-        FCI = self.FCI
+        installed_equipment_cost = self.installed_equipment_cost
+        TDC = self._TDC(self.DPI, installed_equipment_cost)
+        FCI = self._FCI(TDC)  # Fixed Capital Investment 계산 수정
         FOC = self._FOC(FCI)
         VOC = self.VOC
         return FOC + VOC
