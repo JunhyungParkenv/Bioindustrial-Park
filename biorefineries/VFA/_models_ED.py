@@ -23,44 +23,8 @@ import thermosteam as tmo
 from biosteam.evaluation import Model, Metric
 from chaospy import distributions as shape
 from biorefineries.VFA._units import ED  # 기존 ED 유닛 불러오기
-from biorefineries.VFA._tea import VFA_TEA
+from biorefineries.VFA._tea_ed import ED_TEA
 from biorefineries.VFA._process_settings import price
-
-# =============================================================================
-# ED TEA Class (Extending from ED Unit)
-# =============================================================================
-
-class ED_TEA(ED):
-    """
-    ED Techno-Economic Analysis (TEA) model.
-    Inherits from the existing ED unit and extends with cost breakdown.
-    """
-    def __init__(self, ID='', ins=None, outs=(), **kwargs):
-        super().__init__(ID, ins, outs, **kwargs)
-        self.tea = VFA_TEA(self)  # 기존 TEA 시스템 적용
-
-    @property
-    def CAPEX(self):
-        """Use the existing CAPEX from the inherited ED unit."""
-        return sum(self._cost)  # @cost 데코레이터가 정의한 CAPEX
-
-    @property
-    def OPEX(self):
-        """Calculate annual operating costs (electricity, maintenance, labor)."""
-        electricity_cost = self.design_results['Power consumption'] * price['electricity']
-        maintenance_cost = 0.03 * self.CAPEX  # Maintenance: 3% of CAPEX
-        labor_cost = 1e6  # Assumed fixed labor cost
-        return electricity_cost + maintenance_cost + labor_cost
-
-    def get_capex_breakdown(self):
-        """Return detailed CAPEX breakdown."""
-        return {
-            'Membrane Cost': 100 * self.A_m,
-            'Power Supply Cost': 20 * self.A_m,
-            'Electrode Cost': 50 * self.A_m,
-            'Frame Cost': 10 * self.A_m,
-            'Installation Cost': 0.2 * (100 * self.A_m + 20 * self.A_m + 50 * self.A_m + 10 * self.A_m)
-        }
 
 # =============================================================================
 # Sensitivity Analysis: Membrane Area vs Flux
@@ -84,7 +48,8 @@ def create_ed_model():
     """
     Create a BioSTEAM model for the ED process.
     """
-    ed_unit = ED_TEA('ED_Unit')
+    ed_unit = ED_TEA('ED_Unit', A_m=5.0, j=10.0)
+    
     metrics = [
         Metric('CAPEX', lambda: ed_unit.CAPEX / 1e6, 'Million USD'),
         Metric('OPEX', lambda: ed_unit.OPEX / 1e6, 'Million USD/yr'),

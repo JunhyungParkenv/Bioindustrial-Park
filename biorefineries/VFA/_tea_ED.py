@@ -16,47 +16,58 @@ This module is a modified implementation of modules from the following:
 @author: Junhyung Park
 """
 
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Electrodialysis (ED) Techno-Economic Analysis (TEA) Module
+
+Includes:
+- CAPEX & OPEX calculations
+- CAPEX & OPEX breakdowns
+"""
+
 import biosteam as bst
 from biorefineries.VFA._tea import VFA_TEA
 from biorefineries.VFA._process_settings import price
+from biorefineries.VFA._units import ED
 
-class ED_TEA:
+class ED_TEA(ED):
     """
     Techno-Economic Analysis (TEA) for Electrodialysis (ED).
     This class calculates CAPEX, OPEX, and economic performance metrics.
     """
     
-    def __init__(self, ed_unit):
-        self.ed = ed_unit
-        self.tea = VFA_TEA(self.ed)  # 기존 VFA_TEA와 연동 가능
+    def __init__(self, ID='', ins=None, outs=(), **kwargs):
+        super().__init__(ID, ins, outs, **kwargs)
+        self.tea = VFA_TEA(self)  # 기존 TEA 연동
 
     @property
     def CAPEX(self):
-        """Calculate capital expenditures (CAPEX) based on ED costs."""
-        return self.ed.installed_cost
+        """Calculate capital expenditures (CAPEX) using installed cost."""
+        return self.installed_cost  # ⚠ sum(self._cost) 대신 사용
 
     @property
     def OPEX(self):
         """Calculate operational expenditures (OPEX) based on power consumption."""
-        power_cost = self.ed.design_results['Power consumption'] * price['electricity']
-        maintenance_cost = 0.03 * self.CAPEX
-        labor_cost = 1e6
+        power_cost = self.design_results['Power consumption'] * price['electricity']
+        maintenance_cost = 0.03 * self.CAPEX  # Maintenance: 3% of CAPEX
+        labor_cost = 1e6  # Assumed fixed labor cost
         return power_cost + maintenance_cost + labor_cost
 
     def get_capex_breakdown(self):
         """Return CAPEX breakdown for Electrodialysis."""
         return {
-            'Membrane Cost': 100 * self.ed.A_m,
-            'Power Supply Cost': 20 * self.ed.A_m,
-            'Electrode Cost': 50 * self.ed.A_m,
-            'Frame Cost': 10 * self.ed.A_m,
+            'Membrane Cost': 100 * self.A_m,
+            'Power Supply Cost': 20 * self.A_m,
+            'Electrode Cost': 50 * self.A_m,
+            'Frame Cost': 10 * self.A_m,
             'Installation Cost': 0.2 * self.CAPEX
         }
 
     def get_opex_breakdown(self):
         """Return OPEX breakdown for Electrodialysis."""
         return {
-            'Electricity Cost': self.ed.design_results['Power consumption'] * price['electricity'],
+            'Electricity Cost': self.design_results['Power consumption'] * price['electricity'],
             'Maintenance Cost': 0.03 * self.CAPEX,
             'Labor Cost': 1e6
         }
