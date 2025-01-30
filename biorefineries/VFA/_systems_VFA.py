@@ -93,9 +93,9 @@ def create_VFA_sys(ins, outs):
     # --- 1. Anaerobic Digestion (UASB Reactor) ---
     R101 = _units.UASB('R101', ins=feedstock, outs=('vfa_solution', biogas))
     
-    print("R101 outputs:")
-    print(f"VFA solution: {R101.outs[0].show()}")
-    print(f"Biogas: {R101.outs[1].show()}")
+    # print("R101 outputs:")
+    # print(f"VFA solution: {R101.outs[0].show()}")
+    # print(f"Biogas: {R101.outs[1].show()}")
     
     # --- 2. Solid-Liquid Separation ---
     U302 = _units.CellMassFilter(
@@ -106,9 +106,9 @@ def create_VFA_sys(ins, outs):
         split=0
     )
     
-    print("U302 outputs:")
-    print(f"Cell mass: {U302.outs[0].show()}")
-    print(f"VFA filtered: {U302.outs[1].show()}")
+    # print("U302 outputs:")
+    # print(f"Cell mass: {U302.outs[0].show()}")
+    # print(f"VFA filtered: {U302.outs[1].show()}")
     
     # --- 2.1 Split into inf_dc and inf_ac ---
     S302 = bst.Splitter(
@@ -118,9 +118,9 @@ def create_VFA_sys(ins, outs):
         split=0.8  # 80% inf_dc, 20% inf_ac
     )
     
-    print("S302 outputs:")
-    print(f"inf_dc: {S302.outs[0].show()}")
-    print(f"inf_ac: {S302.outs[1].show()}")
+    # print("S302 outputs:")
+    # print(f"inf_dc: {S302.outs[0].show()}")
+    # print(f"inf_ac: {S302.outs[1].show()}")
 
     # # --- 3. Electrodialysis Separation ---
     # S401 = _units.ED(
