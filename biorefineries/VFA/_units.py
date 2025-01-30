@@ -342,6 +342,7 @@ class ED(bst.Unit):
         D['System voltage'] = D['Total current'] * self.R
         D['Power consumption'] = D['System voltage'] * D['Total current']
         
+        print(f"✅ Calculated Membrane Area: {self.A_m:.3f} m²")
 #%% Crystallization (BatchCrystallizer)
 #%%
 # =============================================================================
