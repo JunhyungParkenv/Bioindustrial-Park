@@ -17,13 +17,14 @@ This module is a modified implementation of modules from the following:
 """
 
 from biorefineries.cornstover import CellulosicEthanolTEA
+import biosteam as bst
 
 class VFA_TEA(CellulosicEthanolTEA):
     """
     VFA Techno-Economic Analysis (TEA) 모델.
     기존 CellulosicEthanolTEA를 확장하여 VFA 공정에 맞게 수정.
     """
-    def __init__(self, system, **kwargs):
+    def __init__(self, system, OSBL_units=None, **kwargs):
         super().__init__(
             system=system, 
             IRR=0.10, 
@@ -57,7 +58,21 @@ class VFA_TEA(CellulosicEthanolTEA):
             steam_power_depreciation='MACRS20',
             boiler_turbogenerator=None
         )
+        self.OSBL_units = OSBL_units if OSBL_units is not None else []  # None 방지
     
+    @property
+    def OSBL_installed_equipment_cost(self):
+        """ OSBL 설치 비용 계산 (None 방지) """
+        if not self.OSBL_units:  # 🛠️ 빈 리스트 처리
+            return 0
+        if self.lang_factor:
+            raise NotImplementedError('lang factor cannot yet be used')
+        elif isinstance(self.system, bst.AgileSystem):
+            unit_capital_costs = self.system.unit_capital_costs
+            return sum([unit_capital_costs[i].installed_cost for i in self.OSBL_units])
+        else:
+            return sum([i.installed_cost for i in self.OSBL_units])
+        
     @property
     def CAPEX(self):
         """ 수정된 CAPEX 계산 """
