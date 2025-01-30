@@ -249,9 +249,9 @@ class ED(bst.Unit):
         total_initial_vfa = sum(inf_dc.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
         total_vfa_to_transfer = total_initial_vfa * self.target_ratio
 
-        I = self.j * self.A_m
-        J_T_dict = self.calculate_flux(I)
-        
+        # ✅ 멤브레인 면적 자동 계산
+        I = self.j * self.A_m  
+        J_T_dict = self.calculate_flux(I)  
         total_flux = sum(J_T_dict.values())  
         self.A_m = self.calculate_membrane_area(total_vfa_to_transfer, total_flux)
         
