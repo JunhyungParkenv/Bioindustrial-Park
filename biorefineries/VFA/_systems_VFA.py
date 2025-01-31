@@ -171,7 +171,7 @@ def create_VFA_sys(ins, outs):
         'E101',
         ins=S401-1,  # ac_output directly to MEE
         outs=('vfa_evaporated', evaporated_water),
-        V=0.1,
+        V=0.2,
         V_definition='First-effect',
         P=(101325, 73581, 50892, 32777)
     )

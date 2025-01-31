@@ -31,7 +31,7 @@ def load_preferences_and_process_settings(T='K', flow_units='kg/hr',
         flow=flow_units,  # Default flow rate unit
         N=N,  # Decimal precision for outputs
         P=P_units,  # Default pressure with units (e.g., "1 atm")
-        composition=True,  # Display stream compositions
+        composition=False,  # Display stream compositions
     )
     bst.preferences.light_mode()  # Use light mode for reports
     bst.preferences.save()  # Save preferences globally
