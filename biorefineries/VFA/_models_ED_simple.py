@@ -50,6 +50,7 @@ area_results = []
 for j in j_values:
     S401.j = j  # 전류 밀도 업데이트
     S401._run()  # ED 프로세스 실행
+    S401._design()  # ✅ 설계 값 업데이트 추가
     area_results.append((j, S401.A_m))  # 결과 저장
 
 df = pd.DataFrame(area_results, columns=["Current Density (mA/cm²)", "Membrane Area (m²)"])
@@ -96,6 +97,8 @@ def create_ed_model():
     @model.parameter(name='Current Density', element=S401, kind='coupled', units='mA/cm²', distribution=j_dist)
     def set_current_density(j):
         S401.j = j
+        S401._run()  # ✅ 유닛 실행
+        S401._design()  # ✅ 설계 값 업데이트 (추가)
 
     return model
 
