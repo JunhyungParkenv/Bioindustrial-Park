@@ -254,12 +254,12 @@ class ED(bst.Unit):
         total_flux = sum(J_T_dict.values())  
         self.A_m = self.calculate_membrane_area(total_vfa_to_transfer, total_flux)
         
-        # 업데이트된 전류 및 플럭스 다시 계산
-        I = self.j * self.A_m
-        J_T_dict = self.calculate_flux(I)
+        # # 업데이트된 전류 및 플럭스 다시 계산
+        # I = self.j * self.A_m
+        # J_T_dict = self.calculate_flux(I)
         
-        # ✅ `_design()`을 실행하여 Total current, Power consumption 반영
-        self._design()
+        # # ✅ `_design()`을 실행하여 Total current, Power consumption 반영
+        # self._design()
         # Method 1
         # 이온별 이동량을 계산하고 전체 비율을 맞추기 위한 조정
         # transferred_vfa = 0  # 실제 이동된 전체 VFA 양
