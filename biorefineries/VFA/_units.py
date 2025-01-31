@@ -248,12 +248,19 @@ class ED(bst.Unit):
 
         total_initial_vfa = sum(inf_dc.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
         total_vfa_to_transfer = total_initial_vfa * self.target_ratio
-
-        # ✅ 멤브레인 면적 자동 계산
+        # ✅ 멤브레인 면적 계산 전, 과대평가 방지
         I = self.j * self.A_m  
         J_T_dict = self.calculate_flux(I)  
         total_flux = sum(J_T_dict.values())  
-        self.A_m = self.calculate_membrane_area(total_vfa_to_transfer, total_flux)
+        
+        # ✅ `self.A_m`을 한 번만 계산하고 업데이트 방지
+        calculated_A_m = total_vfa_to_transfer / (total_flux * self.t)
+        self.A_m = max(1.0, calculated_A_m)  # 최소값을 1 m²로 제한
+        # # ✅ 멤브레인 면적 자동 계산
+        # I = self.j * self.A_m  
+        # J_T_dict = self.calculate_flux(I)  
+        # total_flux = sum(J_T_dict.values())  
+        # self.A_m = self.calculate_membrane_area(total_vfa_to_transfer, total_flux)
         
         # # 업데이트된 전류 및 플럭스 다시 계산
         # I = self.j * self.A_m
