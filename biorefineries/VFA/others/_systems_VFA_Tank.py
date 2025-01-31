@@ -14,7 +14,7 @@ from biosteam.process_tools import SystemFactory
 from biosteam import main_flowsheet
 from biorefineries.cellulosic import units
 from biorefineries.VFA import _chemicals
-from biorefineries.VFA import _units
+from biorefineries.VFA import _units_Tank
 from biorefineries.VFA._chemicals import chems, chemical_groups, get_grouped_chemicals
 from biorefineries.cornstover import CellulosicEthanolTEA as TemplateTEA
 # from biorefineries.VFA._process_settings import price
@@ -91,14 +91,14 @@ def create_VFA_sys(ins, outs):
     feedstock.price = 0.1  # Price per kg
 
     # --- 1. Anaerobic Digestion (UASB Reactor) ---
-    R101 = _units.UASB('R101', ins=feedstock, outs=('vfa_solution', biogas))
+    R101 = _units_Tank.UASB('R101', ins=feedstock, outs=('vfa_solution', biogas))
     
     print("R101 outputs:")
     print(f"VFA solution: {R101.outs[0].show()}")
     print(f"Biogas: {R101.outs[1].show()}")
     
     # --- 2. Solid-Liquid Separation ---
-    U302 = _units.CellMassFilter(
+    U302 = _units_Tank.CellMassFilter(
         'U302',
         ins=R101-0,  # vfa_solution
         outs=(U302_cell_mass, 'vfa_filtered'),
@@ -123,7 +123,7 @@ def create_VFA_sys(ins, outs):
     print(f"inf_ac: {S302.outs[1].show()}")
 
     # --- 3. Electrodialysis Separation ---
-    S401 = _units.ED(
+    S401 = _units_Tank.ED(
         'S401',
         ins=(S302-0, S302-1),  # inf_dc, inf_ac
         outs=('dc_output', 'ac_output'),  # Outputs for DC and AC tanks
@@ -133,14 +133,14 @@ def create_VFA_sys(ins, outs):
     )
 
     # --- 3.1 DC Tank and AC Tank ---
-    T301 = _units.DC_Tank(
+    T301 = _units_Tank.DC_Tank(
         'T301',
         ins=S401-0,  # dc_output
         outs=waste_stream,  # DC Tank output to waste stream
         tau=24  # Residence time in hours
     )
 
-    T302 = _units.AC_Tank(
+    T302 = _units_Tank.AC_Tank(
         'T302',
         ins=S401-1,  # ac_output
         outs=('ac_output_to_mee'),  # AC Tank output to MEE

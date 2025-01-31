@@ -16,6 +16,7 @@ from biorefineries.cellulosic import units
 from biorefineries.VFA import _chemicals
 from biorefineries.VFA import _units
 from biorefineries.VFA._chemicals import chems, chemical_groups, get_grouped_chemicals
+from biorefineries.VFA._process_settings import load_preferences_and_process_settings
 # from biorefineries.cornstover import CellulosicEthanolTEA as TemplateTEA
 # from biorefineries.VFA._process_settings import price
 # # Create and compile chemicals
@@ -37,6 +38,8 @@ from biorefineries.VFA._chemicals import chems, chemical_groups, get_grouped_che
 
 # # Add synonyms for easier referencing
 # chems.set_synonym('H2O', 'Water')
+# ✅ **Process settings 불러오기**
+load_preferences_and_process_settings()  # Flow 단위를 'kg/hr'로 설정
 
 # Thermodynamic properties
 tmo.settings.set_thermo(chems)
@@ -171,9 +174,8 @@ def create_VFA_sys(ins, outs):
         'E101',
         ins=S401-1,  # ac_output directly to MEE
         outs=('vfa_evaporated', evaporated_water),
-        V=0.2,
-        V_definition='First-effect',
-        P=(101325, 73581, 50892, 32777)
+        V=1e-4,
+        P=(101325, 73581, 50892, 32777, 20000)
     )
     
     # --- 5. Crystallization ---
@@ -181,15 +183,25 @@ def create_VFA_sys(ins, outs):
         'S201',
         ins=E101-0,
         outs='solid_vfa',
-        tau=24,  # Residence time
-        N=2,  # Number of crystallizers
-        T=305.15  # Temperature
+        tau=48,  # Residence time
+        N=6,  # Number of crystallizers
+        T=320.15  # Temperature
     )
 
-    # --- 6. Storage ---
+    # --- 6. 추가적인 Drying (선택 가능) ---
+    D301 = bst.DrumDryer(
+        'D301',
+        ins=S201-0,  # Crystallizer output
+        outs='dried_vfa',
+        moisture_content=0.05,  # 최종 수분 함량 5% 목표
+        split={'Water': 0.95},  # 물 95% 제거
+        T=343.15  # 건조 온도 (섭씨 70도)
+    )
+    
+    # --- 7. Storage ---
     T101 = bst.StorageTank(
         'T101',
-        ins=S201-0,
+        ins=D301-0,  # Dryer output
         outs=stored_vfa,
         tau=7*24  # Storage time
     )
