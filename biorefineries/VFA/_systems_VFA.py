@@ -164,7 +164,7 @@ def create_VFA_sys(ins, outs):
         'S401',
         ins=(S302-0, S302-1),  # inf_dc, inf_ac
         outs=(dc_output, 'ac_output'),  # Outputs for DC and AC
-        j=None,  # Current density
+        j=11.375,  # Current density
         t=24*3600,  # Time in seconds
         target_ratio=0.8
     )
