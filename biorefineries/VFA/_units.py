@@ -249,26 +249,12 @@ class ED(bst.Unit):
         total_initial_vfa = sum(inf_dc.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
         total_vfa_to_transfer = total_initial_vfa * self.target_ratio
 
-        # # ✅ 멤브레인 면적 자동 계산
-        # I = self.j * self.A_m  
-        # J_T_dict = self.calculate_flux(I)  
-        # total_flux = sum(J_T_dict.values())  
-        # self.A_m = self.calculate_membrane_area(total_vfa_to_transfer, total_flux)
-        
-        # # 업데이트된 전류 및 플럭스 다시 계산
-        # I = self.j * self.A_m
-        # J_T_dict = self.calculate_flux(I)
-        
-        # ✅ 멤브레인 면적 자동 계산 (1회 수행)
+        # ✅ 멤브레인 면적 자동 계산
         I = self.j * self.A_m  
         J_T_dict = self.calculate_flux(I)  
         total_flux = sum(J_T_dict.values())  
-        calculated_A_m = total_vfa_to_transfer / (total_flux * self.t)
-        self.A_m = max(1.0, calculated_A_m)  # 최소 1 m² 유지
+        self.A_m = self.calculate_membrane_area(total_vfa_to_transfer, total_flux)
         
-        # ✅ 다시 전류 및 플럭스 계산
-        I = self.j * self.A_m
-        J_T_dict = self.calculate_flux(I)
         # Method 1
         # 이온별 이동량을 계산하고 전체 비율을 맞추기 위한 조정
         # transferred_vfa = 0  # 실제 이동된 전체 VFA 양
