@@ -70,7 +70,7 @@ def load_preferences_and_process_settings(T='K', flow_units='kg/hr',
     for agent in (lps, mps, hps, cooling_water, chilled_water):
         agent.heat_transfer_price = agent.regeneration_price = 0
 
-    tmo.settings.set_thermo(chems)
+tmo.settings.set_thermo(chems)
 
 # =============================================================================
 # Utility Agents for Heating and Cooling
