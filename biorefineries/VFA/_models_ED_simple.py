@@ -42,13 +42,6 @@ eff_ac = S401.outs[1]  # 기존 eff_ac 스트림
 
 # ✅ **ED 유닛 실행하여 스트림 업데이트**
 S401._run()
-
-# ✅ **스트림 정보 출력**
-print("✅ ED 유닛 실행 후 스트림 확인:")
-print(f"🔹 inf_dc: {inf_dc.show()}")
-print(f"🔹 inf_ac: {inf_ac.show()}")
-print(f"🔹 eff_dc: {eff_dc.show()}")
-print(f"🔹 eff_ac: {eff_ac.show()}")
 #%%
 # 📌 **2. Membrane Area vs. Current Density 관계 분석**
 j_values = np.linspace(1, 15, 10)  # 전류 밀도 범위 설정 (1~15 mA/cm²)

@@ -289,10 +289,12 @@ class ED(bst.Unit):
         # 이동량 추적
         total_transferred_vfa = 0  # 실제 이동된 VFA 총량
     
+        vfa_transfer_dict = {}  # 이동량 저장
+        
         for ion in self.CE_dict:
             available_amount = inf_dc.imol[ion]  # DC에서 사용할 수 있는 양
             n_transferred = J_T_dict[ion] * self.A_m * self.t  # 해당 이온의 이동량
-    
+        
             # 목표를 초과하지 않도록 이동량 조정 (Lactic Acid 제외)
             if ion != 'LacticAcid' and total_transferred_vfa < total_vfa_to_transfer:
                 # 이동량 조정 (목표량을 초과하지 않도록)
@@ -301,16 +303,17 @@ class ED(bst.Unit):
             else:
                 # Lactic Acid는 제한 없이 이동 가능
                 actual_transfer = min(n_transferred, available_amount)
-    
-            # eff_ac와 eff_dc 업데이트
+        
+            # 이동량 저장
+            vfa_transfer_dict[ion] = actual_transfer
+            total_transferred_vfa += actual_transfer  # 전체 이동량 업데이트
+        
+        # ✅ 실제 이동량을 기반으로 `eff_ac`, `eff_dc` 업데이트
+        for ion, actual_transfer in vfa_transfer_dict.items():
             eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer  # AC로 이동
             eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer  # DC에서 감소
-    
-            # Lactic Acid 제외한 총 이동량 추적
-            if ion != 'LacticAcid':
-                total_transferred_vfa += actual_transfer
-    
-        # 물(H2O)은 이동하지 않으므로 그대로 유지
+        
+        # ✅ 물(H2O)은 이동하지 않으므로 그대로 유지
         eff_dc.imol['Water'] = inf_dc.imol['Water']
         eff_ac.imol['Water'] = inf_ac.imol['Water']
         
