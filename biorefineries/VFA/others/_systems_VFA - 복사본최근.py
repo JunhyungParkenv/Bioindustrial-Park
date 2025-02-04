@@ -124,46 +124,52 @@ def create_VFA_sys(ins, outs):
         split=0.8  # 80% inf_dc, 20% inf_ac
     )
     
-    # --- 3. Recycle Streams (초기에는 빈 스트림; 시스템 해석 시 recycle loop가 해결됨) ---
-    recycle_dc = bst.Stream('recycle_dc')
-    recycle_ac = bst.Stream('recycle_ac')
-    
-    # --- 4. MixTank를 사용하여 DC, AC Tank로 직접 신선 feed와 recycle을 혼합 ---
-    T301 = MixTank(
-        'T301',
-        ins=(S302-0, recycle_dc),  # DC측: fresh_dc와 recycle_dc
-        outs='T301_out',
-        tau=24  # 체류시간 24시간
-    )
-    T302 = MixTank(
-        'T302',
-        ins=(S302-1, recycle_ac),  # AC측: fresh_ac와 recycle_ac
-        outs='T302_out',
-        tau=6   # 체류시간 6시간
-    )
-    
-    # --- 5. Electrodialysis (ED) Separation ---
+    # print("S302 outputs:")
+    # print(f"inf_dc: {S302.outs[0].show()}")
+    # print(f"inf_ac: {S302.outs[1].show()}")
+
+    # # --- 3. Electrodialysis Separation ---
+    # S401 = _units.ED(
+    #     'S401',
+    #     ins=(S302-0, S302-1),  # inf_dc, inf_ac
+    #     outs=('dc_output', 'ac_output'),  # Outputs for DC and AC tanks
+    #     j=11.375,  # Current density
+    #     t=24*3600,  # Time
+    #     target_ratio=0.8
+    # )
+
+    # # --- 3.1 DC Tank and AC Tank ---
+    # T301 = _units.DC_Tank(
+    #     'T301',
+    #     ins=S401-0,  # dc_output
+    #     outs=waste_stream,  # DC Tank output to waste stream
+    #     tau=24  # Residence time in hours
+    # )
+
+    # T302 = _units.AC_Tank(
+    #     'T302',
+    #     ins=S401-1,  # ac_output
+    #     outs=('ac_output_to_mee'),  # AC Tank output to MEE
+    #     tau=6  # Residence time in hours
+    # )
+
+    # # --- 4. Evaporation ---
+    # E101 = bst.MultiEffectEvaporator(
+    #     'E101',
+    #     ins=T302-0,  # AC Tank output to MEE
+    #     outs=('vfa_evaporated', evaporated_water),
+    #     V=0.1,
+    #     V_definition='First-effect',
+    #     P=(101325, 73581, 50892, 32777)
+    # )
+    # --- 3. Electrodialysis Separation ---
     S401 = _units.ED(
         'S401',
-        ins=(T301-0, T302-0),  # 두 MixTank의 혼합 출력
-        outs=('ED_dc', 'ED_ac'),
-        j=11.375,       # 전류 밀도
-        t=24*3600,      # 작동 시간 (초)
+        ins=(S302-0, S302-1),  # inf_dc, inf_ac
+        outs=(dc_output, 'ac_output'),  # Outputs for DC and AC
+        j=11.375,  # Current density
+        t=24*3600,  # Time in seconds
         target_ratio=0.8
-    )
-    
-    # --- 6. Splitter로 Tank 출력 분할하여 recycle과 제품 분리 ---
-    S_DC = bst.Splitter(
-        'S_DC',
-        ins=T301-0,
-        outs=(recycle_dc, dc_output),  # 50%를 recycle, 50%는 DC 제품(폐수)
-        split=0.5
-    )
-    S_AC = bst.Splitter(
-        'S_AC',
-        ins=T302-0,
-        outs=(recycle_ac, 'ac_for_MEE'),  # 50%를 recycle, 50%는 AC 제품(MEE 투입)
-        split=0.5
     )
     
     # --- 4. Evaporation ---
@@ -214,36 +220,36 @@ VFA_sys.diagram('cluster', number=True, format='png')
 VFA_sys.simulate()
 VFA_sys.show()
 #%%
-# # ✅ `VFA_sys` 시뮬레이션 실행 후 `S401` 유닛 가져오기
-# S401 = VFA_sys.flowsheet.unit.S401  # ED 유닛 가져오기
-# inf_dc, inf_ac = S401.ins  # 입력 스트림
-# eff_dc, eff_ac = S401.outs  # 출력 스트림
+# ✅ `VFA_sys` 시뮬레이션 실행 후 `S401` 유닛 가져오기
+S401 = VFA_sys.flowsheet.unit.S401  # ED 유닛 가져오기
+inf_dc, inf_ac = S401.ins  # 입력 스트림
+eff_dc, eff_ac = S401.outs  # 출력 스트림
 
-# # ✅ ED 유닛의 `_run()` 실행하여 스트림 업데이트
-# S401._run()
-# S401._design()  # ✅ 설계 값 업데이트
+# ✅ ED 유닛의 `_run()` 실행하여 스트림 업데이트
+S401._run()
+S401._design()  # ✅ 설계 값 업데이트
 
-# # ✅ Membrane Area 한 번만 출력
-# print(f"✅ Optimal Membrane Area: {S401.A_m:.3f} m²")
+# ✅ Membrane Area 한 번만 출력
+print(f"✅ Optimal Membrane Area: {S401.A_m:.3f} m²")
 #%% 📌 **Membrane Area vs. Current Density 관계 분석**
-# j_values = np.linspace(1, 15, 10)  # 전류 밀도 범위 설정 (1~15 mA/cm²)
-# results = []
+j_values = np.linspace(1, 15, 10)  # 전류 밀도 범위 설정 (1~15 mA/cm²)
+results = []
 
-# for j in j_values:
-#     S401.j = j  
-#     S401._run()  # ✅ ED 프로세스 실행
-#     S401._design()  # ✅ 설계 값 업데이트
-#     results.append((j, S401.A_m, S401.design_results['Total current'], S401.design_results['Power consumption']))
+for j in j_values:
+    S401.j = j  
+    S401._run()  # ✅ ED 프로세스 실행
+    S401._design()  # ✅ 설계 값 업데이트
+    results.append((j, S401.A_m, S401.design_results['Total current'], S401.design_results['Power consumption']))
 
-# # ✅ 데이터프레임 생성
-# df = pd.DataFrame(results, columns=["Current Density (mA/cm²)", "Membrane Area (m²)", "Total Current (A)", "Power Consumption (W)"])
+# ✅ 데이터프레임 생성
+df = pd.DataFrame(results, columns=["Current Density (mA/cm²)", "Membrane Area (m²)", "Total Current (A)", "Power Consumption (W)"])
 
-# # ✅ 그래프 출력
-# plt.figure(figsize=(8, 5))
-# plt.plot(df["Current Density (mA/cm²)"], df["Membrane Area (m²)"], marker="o", linestyle="-", label="Membrane Area")
-# plt.xlabel("Current Density (mA/cm²)")
-# plt.ylabel("Membrane Area (m²)")
-# plt.title("Membrane Area vs. Current Density in ED")
-# plt.grid(True)
-# plt.legend()
-# plt.show()
+# ✅ 그래프 출력
+plt.figure(figsize=(8, 5))
+plt.plot(df["Current Density (mA/cm²)"], df["Membrane Area (m²)"], marker="o", linestyle="-", label="Membrane Area")
+plt.xlabel("Current Density (mA/cm²)")
+plt.ylabel("Membrane Area (m²)")
+plt.title("Membrane Area vs. Current Density in ED")
+plt.grid(True)
+plt.legend()
+plt.show()

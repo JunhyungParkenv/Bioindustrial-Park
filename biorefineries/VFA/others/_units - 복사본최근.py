@@ -176,7 +176,7 @@ class CellMassFilter(SolidsSeparator):
 
 # MultiEffectEvaporator (MEE)
 
-# # --- DC Tank ---
+# --- DC Tank ---
 # @cost('Volume', 'DC Tank', cost=1000, S=1, CE=567.3, n=0.7, BM=1.5)
 # class DC_Tank(bst.StorageTank):
 #     _units = {'Volume': 'm³'}  # 비용 계산에 필요한 단위 추가
@@ -207,56 +207,6 @@ class CellMassFilter(SolidsSeparator):
 #         Design['Volume'] = feed.F_vol * self.tau  # 체류 시간과 유량 기반으로 볼륨 계산
 #         super()._design()
 
-# --- DC Tank (MixTank를 사용) ---
-@cost('Volume', 'DC Tank', cost=1000, S=1, CE=567.3, n=0.7, BM=1.5)
-class DC_Tank(MixTank):
-    _units = {'Volume': 'm³'}  # 비용 계산에 필요한 단위
-
-    def __init__(self, ID='', ins=None, outs=(), thermo=None, tau=24):
-        """
-        Parameters
-        ----------
-        tau : float
-            체류시간 (hr). 기본값은 24시간.
-        ins : tuple of Streams
-            첫 번째 inlet은 전체 유입(신선 feed와 recycle의 혼합 유량)으로 가정.
-            두 번째 inlet은 (옵션) 추가 inlet; MixTank는 기본적으로 2개의 inlet을 요구함.
-        """
-        # MixTank는 기본적으로 _N_ins = 2로 정의되어 있음
-        super().__init__(ID, ins, outs, thermo)
-        self.tau = tau  # 체류시간 (hr)
-
-    def _design(self):
-        # 여기서는 첫 번째 inlet을 기준으로 총 유량을 계산합니다.
-        feed = self.ins[0]
-        Design = self.design_results
-        Design['Volume'] = feed.F_vol * self.tau  # 체류시간과 유량 기반 부피 계산
-        super()._design()
-
-
-# --- AC Tank (MixTank를 사용) ---
-@cost('Volume', 'AC Tank', cost=1000, S=1, CE=567.3, n=0.7, BM=1.5)
-class AC_Tank(MixTank):
-    _units = {'Volume': 'm³'}  # 비용 계산에 필요한 단위
-
-    def __init__(self, ID='', ins=None, outs=(), thermo=None, tau=6):
-        """
-        Parameters
-        ----------
-        tau : float
-            체류시간 (hr). 기본값은 6시간.
-        ins : tuple of Streams
-            첫 번째 inlet은 전체 유입(신선 feed와 recycle의 혼합 유량)으로 가정.
-            두 번째 inlet은 (옵션) 추가 inlet; MixTank는 기본적으로 2개의 inlet을 요구함.
-        """
-        super().__init__(ID, ins, outs, thermo)
-        self.tau = tau  # 체류시간 (hr)
-
-    def _design(self):
-        feed = self.ins[0]
-        Design = self.design_results
-        Design['Volume'] = feed.F_vol * self.tau  # 체류시간과 유량 기반 부피 계산
-        super()._design()
 # --- Electrodialysis Unit (ED) ---
 # Constants
 F = 96485.3  # Faraday constant in Coulombs/mol
