@@ -120,7 +120,7 @@ def create_VFA_sys(ins, outs):
     S302 = bst.Splitter(
         'S302',
         ins=U302-1,  # vfa_filtered
-        outs=('inf_dc', 'inf_ac'),
+        outs=('fresh_dc', 'fresh_ac'),
         split=0.8  # 80% inf_dc, 20% inf_ac
     )
     
@@ -129,13 +129,13 @@ def create_VFA_sys(ins, outs):
     recycle_ac = bst.Stream('recycle_ac')
     
     # --- 4. MixTank를 사용하여 DC, AC Tank로 직접 신선 feed와 recycle을 혼합 ---
-    T301 = MixTank(
+    T301 = _units.MixTank(
         'T301',
         ins=(S302-0, recycle_dc),  # DC측: fresh_dc와 recycle_dc
         outs='T301_out',
         tau=24  # 체류시간 24시간
     )
-    T302 = MixTank(
+    T302 = _units.MixTank(
         'T302',
         ins=(S302-1, recycle_ac),  # AC측: fresh_ac와 recycle_ac
         outs='T302_out',
