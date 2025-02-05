@@ -208,7 +208,7 @@ class CellMassFilter(SolidsSeparator):
 #         super()._design()
 
 # --- DC Tank (MixTank를 사용) ---
-@cost('Volume', 'DC Tank', cost=1000, S=1, CE=567.3, n=0.7, BM=1.5)
+@cost('Total Volume', 'DC Tank', cost=1000, S=1, CE=567.3, n=0.7, BM=1.5)
 class DC_Tank(MixTank):
     _units = {'Total volume': 'm^3',
               'Residence time': 'hr'}
@@ -237,7 +237,7 @@ class DC_Tank(MixTank):
 
 
 # --- AC Tank (MixTank를 사용) ---
-@cost('Volume', 'AC Tank', cost=1000, S=1, CE=567.3, n=0.7, BM=1.5)
+@cost('Total Volume', 'AC Tank', cost=1000, S=1, CE=567.3, n=0.7, BM=1.5)
 class AC_Tank(MixTank):
     _units = {'Total volume': 'm^3',
               'Residence time': 'hr'}
