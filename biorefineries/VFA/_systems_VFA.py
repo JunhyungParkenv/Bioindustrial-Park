@@ -178,13 +178,15 @@ dc_tank = F.unit['dc_tank']
 ac_tank = F.unit['ac_tank']
 ed_unit = F.unit['S401']
 
+
 # 결과 출력
-print("--- DC/AC Tank and ED Design Information ---")
+# print("--- DC/AC Tank and ED Design Information ---")
 print(f"DC Tank Residence Time (tau): {dc_tank.tau} hr, Total Volume: {dc_tank.design_results['Total Volume']:.4f} m³")
 print(f"AC Tank Residence Time (tau): {ac_tank.tau} hr, Total Volume: {ac_tank.design_results['Total Volume']:.4f} m³")
 print(f"ED Required Membrane Area (A_m): {ed_unit.design_results['Membrane area']:.4f} m²")
 print(f"ED Adjusted Current Density (j): {ed_unit.j:.4f} A/m²")
 print(f"ED Power Consumption: {ed_unit.design_results['Power consumption']:.4f} W")
+
 # # Electrodialysis (ED) 유닛의 멤브레인 면적(A_m) 및 전류 밀도(j) 출력
 # ED_unit = F.unit.S401  # ED 유닛 불러오기
 # A_m = ED_unit.design_results['Membrane area']

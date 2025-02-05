@@ -210,7 +210,8 @@ class CellMassFilter(SolidsSeparator):
 # --- DC Tank (MixTank를 사용) ---
 @cost('Volume', 'DC Tank', cost=1000, S=1, CE=567.3, n=0.7, BM=1.5)
 class DC_Tank(MixTank):
-    _units = {'Volume': 'm³'}  # 비용 계산에 필요한 단위
+    _units = {'Total volume': 'm^3',
+              'Residence time': 'hr'}
 
     def __init__(self, ID='', ins=None, outs=(), thermo=None, tau=24):
         """
@@ -238,7 +239,8 @@ class DC_Tank(MixTank):
 # --- AC Tank (MixTank를 사용) ---
 @cost('Volume', 'AC Tank', cost=1000, S=1, CE=567.3, n=0.7, BM=1.5)
 class AC_Tank(MixTank):
-    _units = {'Volume': 'm³'}  # 비용 계산에 필요한 단위
+    _units = {'Total volume': 'm^3',
+              'Residence time': 'hr'}
 
     def __init__(self, ID='', ins=None, outs=(), thermo=None, tau=6):
         """
