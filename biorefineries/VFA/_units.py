@@ -230,7 +230,8 @@ class DC_Tank(MixTank):
         # 여기서는 첫 번째 inlet을 기준으로 총 유량을 계산합니다.
         feed = self.ins[0]
         Design = self.design_results
-        Design['Volume'] = feed.F_vol * self.tau  # 체류시간과 유량 기반 부피 계산
+        Design['Flow rate'] = feed.F_vol
+        Design['Total Volume'] = feed.F_vol * self.tau  # 체류시간과 유량 기반 부피 계산
         super()._design()
 
 
@@ -255,7 +256,8 @@ class AC_Tank(MixTank):
     def _design(self):
         feed = self.ins[0]
         Design = self.design_results
-        Design['Volume'] = feed.F_vol * self.tau  # 체류시간과 유량 기반 부피 계산
+        Design['Flow rate'] = feed.F_vol
+        Design['Total Volume'] = feed.F_vol * self.tau  # 체류시간과 유량 기반 부피 계산
         super()._design()
 # --- Electrodialysis Unit (ED) ---
 # Constants

@@ -20,28 +20,7 @@ from biorefineries.VFA._process_settings import load_preferences_and_process_set
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-# from biorefineries.cornstover import CellulosicEthanolTEA as TemplateTEA
-# from biorefineries.VFA._process_settings import price
-# # Create and compile chemicals
-# chems = tmo.Chemicals([])
 
-# # Add water and other chemicals
-# H2O = tmo.Chemical('H2O')
-# Glucose = tmo.Chemical('Glucose')
-# LacticAcid = tmo.Chemical('LacticAcid')
-# ButyricAcid = tmo.Chemical('ButyricAcid')
-# PropionicAcid = tmo.Chemical('PropionicAcid')
-# AceticAcid = tmo.Chemical('AceticAcid')
-# ValericAcid = tmo.Chemical('ValericAcid', search_ID='PentanoicAcid')  # Valeric Acid alias
-# CO2 = tmo.Chemical('CO2')
-
-# # Append chemicals to the `chems` object
-# chems.extend([H2O, Glucose, LacticAcid, ButyricAcid, PropionicAcid, AceticAcid, ValericAcid, CO2])
-# chems.compile()
-
-# # Add synonyms for easier referencing
-# chems.set_synonym('H2O', 'Water')
-# ✅ **Process settings 불러오기**
 load_preferences_and_process_settings()  # Flow 단위를 'kg/hr'로 설정
 
 # Thermodynamic properties
@@ -51,12 +30,6 @@ tmo.settings.set_thermo(chems)
 F = bst.Flowsheet('VFA_Recovery')
 bst.main_flowsheet.set_flowsheet(F)
 # %% System Definition
-# @SystemFactory(
-#     ID='VFA_sys',
-#     ins=[dict(ID='feedstock', units='kg/hr')],
-#     outs=[dict(ID='stored_vfa', units='kg/hr'),
-#           dict(ID='waste_stream', units='kg/hr')]
-# )
 @SystemFactory(
     ID='VFA_sys',
     ins=[dict(ID='feedstock', units='kg/hr')],
@@ -200,14 +173,25 @@ VFA_sys.diagram('cluster', number=True, format='png')
 VFA_sys.simulate()
 VFA_sys.show()
 #%%
-# Electrodialysis (ED) 유닛의 멤브레인 면적(A_m) 및 전류 밀도(j) 출력
-ED_unit = F.unit.S401  # ED 유닛 불러오기
-A_m = ED_unit.design_results['Membrane area']
-j = ED_unit.j
+# DC/AC Tank의 체류 시간과 ED 유닛의 디자인 결과 출력
+dc_tank = F.unit['dc_tank']
+ac_tank = F.unit['ac_tank']
+ed_unit = F.unit['S401']
 
 # 결과 출력
-print(f"✅ Required Membrane Area (Aₘ): {A_m:.2f} m²")
-print(f"✅ Current Density (j): {j:.2f} A/m²")
+print("--- DC/AC Tank and ED Design Information ---")
+print(f"DC Tank Residence Time (tau): {dc_tank.tau} hr, Total Volume: {dc_tank.design_results['Total Volume']:.4f} m³")
+print(f"AC Tank Residence Time (tau): {ac_tank.tau} hr, Total Volume: {ac_tank.design_results['Total Volume']:.4f} m³")
+print(f"ED Required Membrane Area (A_m): {ed_unit.design_results['Membrane area']:.4f} m²")
+print(f"ED Adjusted Current Density (j): {ed_unit.j:.4f} A/m²")
+print(f"ED Power Consumption: {ed_unit.design_results['Power consumption']:.4f} W")
+# # Electrodialysis (ED) 유닛의 멤브레인 면적(A_m) 및 전류 밀도(j) 출력
+# ED_unit = F.unit.S401  # ED 유닛 불러오기
+# A_m = ED_unit.design_results['Membrane area']
+# j = ED_unit.j
+# # 결과 출력
+# print(f"✅ Required Membrane Area (Aₘ): {A_m:.2f} m²")
+# print(f"✅ Current Density (j): {j:.2f} A/m²")
 #%%
 # ✅ `VFA_sys` 시뮬레이션 실행 후 `S401` 유닛 가져오기
 S401 = VFA_sys.flowsheet.unit.S401  # ED 유닛 가져오기
