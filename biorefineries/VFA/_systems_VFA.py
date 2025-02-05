@@ -50,21 +50,6 @@ tmo.settings.set_thermo(chems)
 # Flowsheet Initialization
 F = bst.Flowsheet('VFA_Recovery')
 bst.main_flowsheet.set_flowsheet(F)
-
-# %% Feedstock Stream Definition
-# Feedstock stream 수정
-# feedstock = Stream(
-#     'feedstock',
-#     Water=154570.91,  # 물의 질량 흐름 (kg/hr)
-#     Glucose=3154.51,  # Glucose의 질량 흐름 (kg/hr)
-#     # FermMicrobe=8.,Lignin = 5., 
-#     # SolubleLignin = 10., GlucoseOligomer = 5.,
-#     units='kg/hr',
-#     price=0.1  # Example price
-# )
-
-# feedstock.imol['Water'] = 154570.91 / chems.Water.MW  # kg -> kmol
-# feedstock.imol['Glucose'] = 3154.51 / chems.Glucose.MW  # kg -> kmol
 # %% System Definition
 # @SystemFactory(
 #     ID='VFA_sys',
@@ -149,7 +134,6 @@ def create_VFA_sys(ins, outs):
         outs=('treated_dc', 'treated_ac'),
         j=11.375,       # 전류 밀도
         t=24*3600,      # 작동 시간 (초)
-        target_ratio=0.8
     )
     
     # --- 6. DC Output Handling (재순환 포함) ---
@@ -157,7 +141,7 @@ def create_VFA_sys(ins, outs):
         'S_DC',
         ins=S401-0,  # ED의 DC 출력
         outs=(recycle_dc, dc_output),
-        split=0.5  # 50% 재순환, 50% 배출
+        split=0.9  # 50% 재순환, 50% 배출
     )
 
     # --- 7. AC Output Handling (재순환 포함) ---
@@ -165,7 +149,7 @@ def create_VFA_sys(ins, outs):
         'S_AC',
         ins=S401-1,  # ED의 AC 출력
         outs=(recycle_ac, 'ac_for_MEE'),
-        split=0.5  # 50% 재순환, 50% MEE로 이동
+        split=0.9  # 50% 재순환, 50% MEE로 이동
     )
     
     # --- 8. Multi-Effect Evaporator (MEE) ---
@@ -216,17 +200,11 @@ VFA_sys.diagram('cluster', number=True, format='png')
 VFA_sys.simulate()
 VFA_sys.show()
 #%%
-# # ✅ `VFA_sys` 시뮬레이션 실행 후 `S401` 유닛 가져오기
-# S401 = VFA_sys.flowsheet.unit.S401  # ED 유닛 가져오기
-# inf_dc, inf_ac = S401.ins  # 입력 스트림
-# eff_dc, eff_ac = S401.outs  # 출력 스트림
-
-# # ✅ ED 유닛의 `_run()` 실행하여 스트림 업데이트
-# S401._run()
-# S401._design()  # ✅ 설계 값 업데이트
-
-# # ✅ Membrane Area 한 번만 출력
-# print(f"✅ Optimal Membrane Area: {S401.A_m:.3f} m²")
+# ✅ `VFA_sys` 시뮬레이션 실행 후 `S401` 유닛 가져오기
+S401 = VFA_sys.flowsheet.unit.S401  # ED 유닛 가져오기
+S401._design()  # ✅ 설계 값 업데이트
+# ✅ Membrane Area 한 번만 출력
+print(f"✅ Optimal Membrane Area: {S401.A_m:.3f} m²")
 #%% 📌 **Membrane Area vs. Current Density 관계 분석**
 # j_values = np.linspace(1, 15, 10)  # 전류 밀도 범위 설정 (1~15 mA/cm²)
 # results = []

@@ -310,9 +310,9 @@ class ED(bst.Unit):
             eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer
             eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer
 
-        # 물(H2O)은 이동하지 않음
-        eff_dc.imol['Water'] = inf_dc.imol['Water']
-        eff_ac.imol['Water'] = inf_ac.imol['Water']
+        # # 물(H2O)은 이동하지 않음
+        # eff_dc.imol['Water'] = inf_dc.imol['Water']
+        # eff_ac.imol['Water'] = inf_ac.imol['Water']
 
     _units = {
         'Membrane area': 'm²',
