@@ -295,25 +295,24 @@ class ED(bst.Unit):
         inf_dc, inf_ac = self.ins
         eff_dc, eff_ac = self.outs
 
-        # DC 및 AC 탱크의 체류 시간(tau) 고려
-        tau_dc = inf_dc._source.tau if hasattr(inf_dc._source, 'tau') else 24
-        tau_ac = inf_ac._source.tau if hasattr(inf_ac._source, 'tau') else 6
-        avg_tau = (tau_dc + tau_ac) / 2  # 평균 체류 시간
-
-        # 전류 및 플럭스 계산 (tau 반영)
-        adjusted_j = self.j * (avg_tau / 24)  # tau에 따른 전류 밀도 조정
-        I = adjusted_j * self.A_m  
+        # 전류 및 플럭스 계산
+        I = self.j * self.A_m  
         J_T_dict = self.calculate_flux(I)  
         total_flux = sum(J_T_dict.values())  
 
-        # 이온 이동 처리
+        # 이온 이동 처리 (target_ratio 없이 계산)
         for ion in self.CE_dict:
             available_amount = inf_dc.imol[ion]
             n_transferred = J_T_dict[ion] * self.A_m * self.t
             actual_transfer = min(n_transferred, available_amount)
 
+            # 이온 이동량 업데이트
             eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer
             eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer
+
+        # # 물(H2O)은 이동하지 않음
+        # eff_dc.imol['Water'] = inf_dc.imol['Water']
+        # eff_ac.imol['Water'] = inf_ac.imol['Water']
 
     _units = {
         'Membrane area': 'm²',

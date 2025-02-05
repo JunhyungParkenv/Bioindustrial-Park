@@ -166,7 +166,7 @@ def create_VFA_sys(ins, outs):
         'S201',
         ins=E101-0,
         outs='solid_vfa',
-        tau=48,  # Residence time
+        tau=24,  # Residence time
         N=6,  # Number of crystallizers
         T=320.15  # Temperature
     )
@@ -199,6 +199,15 @@ VFA_sys.diagram('cluster', number=True, format='png')
 #%%
 VFA_sys.simulate()
 VFA_sys.show()
+#%%
+# Electrodialysis (ED) 유닛의 멤브레인 면적(A_m) 및 전류 밀도(j) 출력
+ED_unit = F.unit.S401  # ED 유닛 불러오기
+A_m = ED_unit.design_results['Membrane area']
+j = ED_unit.j
+
+# 결과 출력
+print(f"✅ Required Membrane Area (Aₘ): {A_m:.2f} m²")
+print(f"✅ Current Density (j): {j:.2f} A/m²")
 #%%
 # ✅ `VFA_sys` 시뮬레이션 실행 후 `S401` 유닛 가져오기
 S401 = VFA_sys.flowsheet.unit.S401  # ED 유닛 가져오기
