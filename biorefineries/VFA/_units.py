@@ -232,7 +232,7 @@ class DC_Tank(MixTank):
         Design = self.design_results
         Design['Flow rate'] = feed.F_vol
         Design['Total Volume'] = feed.F_vol * self.tau  # 체류시간과 유량 기반 부피 계산
-        super()._design()
+
 
 
 # --- AC Tank (MixTank를 사용) ---
@@ -258,7 +258,7 @@ class AC_Tank(MixTank):
         Design = self.design_results
         Design['Flow rate'] = feed.F_vol
         Design['Total Volume'] = feed.F_vol * self.tau  # 체류시간과 유량 기반 부피 계산
-        super()._design()
+
 # --- Electrodialysis Unit (ED) ---
 # Constants
 F = 96485.3  # Faraday constant (C/mol)
