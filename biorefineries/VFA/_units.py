@@ -208,10 +208,9 @@ class CellMassFilter(SolidsSeparator):
 #         super()._design()
 
 # --- DC Tank (MixTank를 사용) ---
-@cost('Total Volume', 'DC Tank', cost=1000, S=1, CE=567.3, n=0.7, BM=1.5)
+@cost('Volume', 'DC Tank', cost=1000, S=1, CE=567.3, n=0.7, BM=1.5)
 class DC_Tank(MixTank):
-    _units = {'Total volume': 'm^3',
-              'Residence time': 'hr'}
+    _units = {'Volume': 'm^3'}
 
     def __init__(self, ID='', ins=None, outs=(), thermo=None, tau=24):
         """
@@ -231,16 +230,13 @@ class DC_Tank(MixTank):
         # 여기서는 첫 번째 inlet을 기준으로 총 유량을 계산합니다.
         feed = self.ins[0]
         Design = self.design_results
-        Design['Flow rate'] = feed.F_vol
-        Design['Total Volume'] = feed.F_vol * self.tau  # 체류시간과 유량 기반 부피 계산
-
-
+        Design['Volume'] = feed.F_vol * self.tau  # 체류시간과 유량 기반 부피 계산
+        super()._design()
 
 # --- AC Tank (MixTank를 사용) ---
-@cost('Total Volume', 'AC Tank', cost=1000, S=1, CE=567.3, n=0.7, BM=1.5)
+@cost('Volume', 'AC Tank', cost=1000, S=1, CE=567.3, n=0.7, BM=1.5)
 class AC_Tank(MixTank):
-    _units = {'Total volume': 'm^3',
-              'Residence time': 'hr'}
+    _units = {'Volume': 'm^3'}
 
     def __init__(self, ID='', ins=None, outs=(), thermo=None, tau=6):
         """
@@ -258,9 +254,8 @@ class AC_Tank(MixTank):
     def _design(self):
         feed = self.ins[0]
         Design = self.design_results
-        Design['Flow rate'] = feed.F_vol
-        Design['Total Volume'] = feed.F_vol * self.tau  # 체류시간과 유량 기반 부피 계산
-
+        Design['Volume'] = feed.F_vol * self.tau  # 체류시간과 유량 기반 부피 계산
+        super()._design()
 # --- Electrodialysis Unit (ED) ---
 # Constants
 F = 96485.3  # Faraday constant (C/mol)
@@ -325,8 +320,6 @@ class ED(bst.Unit):
         'System voltage': 'V',
         'Power consumption': 'W',
         'Total current': 'A',
-        'Tank volume (DC)': 'm³',
-        'Tank volume (AC)': 'm³',
     }
 
     def _design(self):
