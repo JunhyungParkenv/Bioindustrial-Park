@@ -250,72 +250,55 @@ class ED(bst.Unit):
         self.R = R  # 시스템 저항 (Ohm)
         self.z_T = z_T  # 이온 전하수
         self.t = t  # 작동 시간 (초)
-        self.target_removal_ratio = target_removal_ratio  # DC에서 제거할 이온의 비율 (80%)
-
-    def calculate_flux(self, I):
-        """이온별 플럭스 계산"""
-        return {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
-
-    def calculate_membrane_area(self, total_moles_to_transfer, total_flux):
-        """필요한 멤브레인 면적 계산"""
-        if total_flux == 0:  
-            return self.A_m  
-        return total_moles_to_transfer / (total_flux * self.t)
+        self.target_removal_ratio = target_removal_ratio  # DC에서 제거할 이온 비율
 
     def update_tank_tau(self):
-        """DC/AC 탱크의 체류시간 자동 업데이트"""
         inf_dc, inf_ac = self.ins
         dc_tank = inf_dc._source
         ac_tank = inf_ac._source
 
         if isinstance(dc_tank, DC_Tank) and isinstance(ac_tank, AC_Tank):
-            dc_tank.tau = 24  # DC Tank 기본 체류 시간
-            ac_tank.tau = dc_tank.tau * (1 - self.target_removal_ratio)  
+            # DC Tank의 체류시간은 고정
+            dc_tank.tau = 24  # 24시간 고정
+
+            # AC Tank의 체류시간을 DC Tank의 tau 값과 target_removal_ratio를 기반으로 자동 설정
+            ac_tank.tau = dc_tank.tau * self.target_removal_ratio  
+
+            # 체류시간 업데이트 후, 시스템에 변경 사항 적용
+            dc_tank._design()  # DC Tank 크기 업데이트
+            ac_tank._design()  # AC Tank 크기 업데이트
+
             print(f"✅ DC Tank tau: {dc_tank.tau} hr, AC Tank tau: {ac_tank.tau} hr")
 
     def _run(self):
-        """ED 유닛 실행"""
         inf_dc, inf_ac = self.ins
         eff_dc, eff_ac = self.outs
 
+        # AC Tank 체류시간 자동 업데이트
         self.update_tank_tau()
-
-        # DC의 초기 VFA 총량
-        total_initial_vfa = sum(inf_dc.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
-        if total_initial_vfa == 0:  
-            eff_dc.copy_like(inf_dc)
-            eff_ac.copy_like(inf_ac)
-            return
         
-        # 목표로 이동해야 할 VFA 양 (80% 이동)
-        total_moles_to_transfer = total_initial_vfa * self.target_removal_ratio
-
-        # 전류 I 계산
+        # 전하수 기반 플럭스 계산
         I = self.j * self.A_m
         J_T_dict = self.calculate_flux(I)
         total_flux = sum(J_T_dict.values())
 
-        # 새로운 멤브레인 면적 업데이트
-        self.A_m = self.calculate_membrane_area(total_moles_to_transfer, total_flux)
+        # 총 전달량 계산
+        total_initial_vfa = sum(inf_dc.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
+        total_transferred_vfa = total_initial_vfa * self.target_removal_ratio
 
-        total_transferred_vfa = 0
+        # 필요한 멤브레인 면적 계산
+        self.A_m = self.calculate_membrane_area(total_transferred_vfa, total_flux)
 
+        # DC에서 AC로 이온 이동
         for ion in self.CE_dict:
             available_amount = inf_dc.imol[ion]
             n_transferred = J_T_dict[ion] * self.A_m * self.t
-
-            if ion != 'LacticAcid' and total_transferred_vfa < total_moles_to_transfer:
-                remaining_capacity = total_moles_to_transfer - total_transferred_vfa
-                actual_transfer = min(n_transferred, available_amount, remaining_capacity)
-            else:
-                actual_transfer = min(n_transferred, available_amount)
+            actual_transfer = min(n_transferred, available_amount)
 
             eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer
             eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer
 
-            if ion != 'LacticAcid':
-                total_transferred_vfa += actual_transfer
-
+        # 물 밸런스 유지
         eff_dc.imol['Water'] = inf_dc.imol['Water']
         eff_ac.imol['Water'] = inf_ac.imol['Water']
 
@@ -328,13 +311,13 @@ class ED(bst.Unit):
     }
 
     def _design(self):
-        """설계 결과 계산"""
         D = self.design_results
         D['Membrane area'] = self.A_m
         D['Total current'] = self.j * self.A_m
         D['System resistance'] = self.R
         D['System voltage'] = D['Total current'] * self.R
         D['Power consumption'] = D['System voltage'] * D['Total current']
+
 
         
 #%% Crystallization (BatchCrystallizer)
