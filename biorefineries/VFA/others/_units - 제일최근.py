@@ -239,7 +239,7 @@ class ED(bst.Unit):
     _N_outs = 2  # eff_dc, eff_ac
 
     def __init__(self, ID='', ins=None, outs=(), thermo=None, CE_dict=None, j=5.058, 
-                 A_m=None, R=0.0000222, z_T=1.0, t=24*3600, target_removal_ratio=0.8):
+                 A_m=None, R=0.0000222, z_T=1.0, t=24*3600, target_concentration_ratio=4.0):
         super().__init__(ID, ins, outs, thermo=thermo)
         self.CE_dict = CE_dict or {
             'AceticAcid': 0.164472, 'PropionicAcid': 0.082236, 'ButyricAcid': 0.059,
@@ -250,53 +250,48 @@ class ED(bst.Unit):
         self.R = R  # 시스템 저항 (Ohm)
         self.z_T = z_T  # 이온 전하수
         self.t = t  # 작동 시간 (초)
-        self.target_removal_ratio = target_removal_ratio  # DC에서 제거할 이온의 비율 (80%)
+        self.target_concentration_ratio = target_concentration_ratio
 
     def calculate_flux(self, I):
-        """이온별 플럭스 계산"""
         return {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
 
+    # def calculate_membrane_area(self, total_moles_to_transfer, total_flux):
+    #     return total_moles_to_transfer / (total_flux * self.t)
     def calculate_membrane_area(self, total_moles_to_transfer, total_flux):
-        """필요한 멤브레인 면적 계산"""
-        if total_flux == 0:  
+        if total_flux == 0:  # 플럭스가 0이면 업데이트하지 않음
             return self.A_m  
         return total_moles_to_transfer / (total_flux * self.t)
-
+    
     def update_tank_tau(self):
-        """DC/AC 탱크의 체류시간 자동 업데이트"""
         inf_dc, inf_ac = self.ins
         dc_tank = inf_dc._source
         ac_tank = inf_ac._source
 
         if isinstance(dc_tank, DC_Tank) and isinstance(ac_tank, AC_Tank):
             dc_tank.tau = 24  # DC Tank 기본 체류 시간
-            ac_tank.tau = dc_tank.tau * (1 - self.target_removal_ratio)  
+            ac_tank.tau = dc_tank.tau / self.target_concentration_ratio  # AC Tank의 tau 자동 조정
             print(f"✅ DC Tank tau: {dc_tank.tau} hr, AC Tank tau: {ac_tank.tau} hr")
 
     def _run(self):
-        """ED 유닛 실행"""
         inf_dc, inf_ac = self.ins
         eff_dc, eff_ac = self.outs
 
         self.update_tank_tau()
-
-        # DC의 초기 VFA 총량
+        
         total_initial_vfa = sum(inf_dc.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
-        if total_initial_vfa == 0:  
+        if total_initial_vfa == 0:  # 이온이 없으면 바로 리턴
             eff_dc.copy_like(inf_dc)
             eff_ac.copy_like(inf_ac)
             return
+        # total_initial_vfa = sum(inf_dc.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
         
-        # 목표로 이동해야 할 VFA 양 (80% 이동)
-        total_moles_to_transfer = total_initial_vfa * self.target_removal_ratio
+        target_vfa_concentration = total_initial_vfa * self.target_concentration_ratio
 
-        # 전류 I 계산
         I = self.j * self.A_m
         J_T_dict = self.calculate_flux(I)
         total_flux = sum(J_T_dict.values())
 
-        # 새로운 멤브레인 면적 업데이트
-        self.A_m = self.calculate_membrane_area(total_moles_to_transfer, total_flux)
+        self.A_m = self.calculate_membrane_area(target_vfa_concentration, total_flux)
 
         total_transferred_vfa = 0
 
@@ -304,8 +299,8 @@ class ED(bst.Unit):
             available_amount = inf_dc.imol[ion]
             n_transferred = J_T_dict[ion] * self.A_m * self.t
 
-            if ion != 'LacticAcid' and total_transferred_vfa < total_moles_to_transfer:
-                remaining_capacity = total_moles_to_transfer - total_transferred_vfa
+            if ion != 'LacticAcid' and total_transferred_vfa < target_vfa_concentration:
+                remaining_capacity = target_vfa_concentration - total_transferred_vfa
                 actual_transfer = min(n_transferred, available_amount, remaining_capacity)
             else:
                 actual_transfer = min(n_transferred, available_amount)
@@ -328,14 +323,12 @@ class ED(bst.Unit):
     }
 
     def _design(self):
-        """설계 결과 계산"""
         D = self.design_results
         D['Membrane area'] = self.A_m
         D['Total current'] = self.j * self.A_m
         D['System resistance'] = self.R
         D['System voltage'] = D['Total current'] * self.R
         D['Power consumption'] = D['System voltage'] * D['Total current']
-
         
 #%% Crystallization (BatchCrystallizer)
 #%%
