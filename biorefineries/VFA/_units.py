@@ -251,7 +251,17 @@ class ED(bst.Unit):
         self.z_T = z_T  # 이온 전하수
         self.t = t  # 작동 시간 (초)
         self.target_removal_ratio = target_removal_ratio  # DC에서 제거할 이온 비율
-
+        
+    def calculate_flux(self, I):
+        """ 전류(I)를 기반으로 이온들의 플럭스를 계산 """
+        return {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
+    
+    def calculate_membrane_area(self, total_moles_to_transfer, total_flux):
+        """ 목표 이온 농도를 달성하기 위한 멤브레인 면적 계산 """
+        if total_flux == 0:  # 플럭스가 0이면 업데이트하지 않음
+            return self.A_m  
+        return total_moles_to_transfer / (total_flux * self.t)
+    
     def update_tank_tau(self):
         inf_dc, inf_ac = self.ins
         dc_tank = inf_dc._source
