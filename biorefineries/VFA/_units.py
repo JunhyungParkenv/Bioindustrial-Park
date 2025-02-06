@@ -255,9 +255,13 @@ class ED(bst.Unit):
     def calculate_flux(self, I):
         return {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
 
+    # def calculate_membrane_area(self, total_moles_to_transfer, total_flux):
+    #     return total_moles_to_transfer / (total_flux * self.t)
     def calculate_membrane_area(self, total_moles_to_transfer, total_flux):
+        if total_flux == 0:  # 플럭스가 0이면 업데이트하지 않음
+            return self.A_m  
         return total_moles_to_transfer / (total_flux * self.t)
-
+    
     def update_tank_tau(self):
         inf_dc, inf_ac = self.ins
         dc_tank = inf_dc._source
@@ -273,8 +277,14 @@ class ED(bst.Unit):
         eff_dc, eff_ac = self.outs
 
         self.update_tank_tau()
-
+        
         total_initial_vfa = sum(inf_dc.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
+        if total_initial_vfa == 0:  # 이온이 없으면 바로 리턴
+            eff_dc.copy_like(inf_dc)
+            eff_ac.copy_like(inf_ac)
+            return
+        # total_initial_vfa = sum(inf_dc.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
+        
         target_vfa_concentration = total_initial_vfa * self.target_concentration_ratio
 
         I = self.j * self.A_m
