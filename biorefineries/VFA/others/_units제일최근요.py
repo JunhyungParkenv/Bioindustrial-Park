@@ -239,70 +239,63 @@ class ED(bst.Unit):
     _N_outs = 2  # eff_dc, eff_ac
 
     def __init__(self, ID='', ins=None, outs=(), thermo=None, CE_dict=None, j=5.058, 
-                 A_m=None, R=0.0000222, z_T=1.0, t=24*3600, target_concentration_ratio=4.0):
+                 A_m=None, R=0.0000222, z_T=1.0, t=24*3600):
         super().__init__(ID, ins, outs, thermo=thermo)
         self.CE_dict = CE_dict or {
             'AceticAcid': 0.164472, 'PropionicAcid': 0.082236, 'ButyricAcid': 0.059,
             'ValericAcid': 0.063118, 'LacticAcid': 0.082236, 'Water': 0.0
         }
-        self.j = j  # 전류 밀도 (A/m²)
-        self.A_m = A_m or 1.0  # 초기 멤브레인 면적 (m²)
-        self.R = R  # 시스템 저항 (Ohm)
-        self.z_T = z_T  # 이온 전하수
-        self.t = t  # 작동 시간 (초)
-        self.target_concentration_ratio = target_concentration_ratio
+        self.j = j                # 전류 밀도 (A/m²)
+        self.A_m = A_m or 1.0     # 초기 멤브레인 면적 (m²)
+        self.R = R                # 시스템 저항 (Ohm)
+        self.z_T = z_T            # 이온 전하수
+        self.t = t                # 작동 시간 (초)
 
     def calculate_flux(self, I):
+        """플럭스 계산 (J = (CE * I) / (z * F * A_m))"""
         return {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
 
     def calculate_membrane_area(self, total_moles_to_transfer, total_flux):
+        """멤브레인 면적 계산 (A_m = 총 이동량 / (플럭스 * 시간))"""
         return total_moles_to_transfer / (total_flux * self.t)
-
-    def update_tank_tau(self):
-        inf_dc, inf_ac = self.ins
-        dc_tank = inf_dc._source
-        ac_tank = inf_ac._source
-
-        if isinstance(dc_tank, DC_Tank) and isinstance(ac_tank, AC_Tank):
-            dc_tank.tau = 24  # DC Tank 기본 체류 시간
-            ac_tank.tau = dc_tank.tau / self.target_concentration_ratio  # AC Tank의 tau 자동 조정
-            print(f"✅ DC Tank tau: {dc_tank.tau} hr, AC Tank tau: {ac_tank.tau} hr")
 
     def _run(self):
         inf_dc, inf_ac = self.ins
         eff_dc, eff_ac = self.outs
 
-        self.update_tank_tau()
+        # DC 및 AC 탱크의 체류 시간(tau) 고려
+        tau_dc = inf_dc._source.tau if hasattr(inf_dc._source, 'tau') else 24
+        tau_ac = inf_ac._source.tau if hasattr(inf_ac._source, 'tau') else 6
+        avg_tau = (tau_dc + tau_ac) / 2  # 평균 체류 시간
 
-        total_initial_vfa = sum(inf_dc.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
-        target_vfa_concentration = total_initial_vfa * self.target_concentration_ratio
-
-        I = self.j * self.A_m
+        # # 전류 및 플럭스 계산 (tau 반영)
+        # adjusted_j = self.j * (avg_tau / 24)  # tau에 따른 전류 밀도 조정
+        # I = adjusted_j * self.A_m  
+        # J_T_dict = self.calculate_flux(I)  
+        # total_flux = sum(J_T_dict.values())  
+        
+        # ✅ 전류 계산 (체류 시간 영향 제거)
+        I = self.j * self.A_m  # 전류 = 전류 밀도 × 멤브레인 면적
+        
+        # ✅ 플럭스 계산
         J_T_dict = self.calculate_flux(I)
         total_flux = sum(J_T_dict.values())
-
-        self.A_m = self.calculate_membrane_area(target_vfa_concentration, total_flux)
-
-        total_transferred_vfa = 0
-
+    
+        # 총 이온 이동량 계산
+        total_moles_to_transfer = sum(inf_dc.imol[ion] for ion in self.CE_dict)
+    
+        # ✅ 멤브레인 면적 재계산
+        A_m_new = self.calculate_membrane_area(total_moles_to_transfer, total_flux)
+        self.A_m = A_m_new  # 업데이트된 면적 적용
+        
+        # 이온 이동 처리
         for ion in self.CE_dict:
             available_amount = inf_dc.imol[ion]
             n_transferred = J_T_dict[ion] * self.A_m * self.t
-
-            if ion != 'LacticAcid' and total_transferred_vfa < target_vfa_concentration:
-                remaining_capacity = target_vfa_concentration - total_transferred_vfa
-                actual_transfer = min(n_transferred, available_amount, remaining_capacity)
-            else:
-                actual_transfer = min(n_transferred, available_amount)
+            actual_transfer = min(n_transferred, available_amount)
 
             eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer
             eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer
-
-            if ion != 'LacticAcid':
-                total_transferred_vfa += actual_transfer
-
-        eff_dc.imol['Water'] = inf_dc.imol['Water']
-        eff_ac.imol['Water'] = inf_ac.imol['Water']
 
     _units = {
         'Membrane area': 'm²',
