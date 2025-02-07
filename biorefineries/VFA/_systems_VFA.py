@@ -73,7 +73,7 @@ def create_VFA_sys(ins, outs):
     )
 
     # **🔹 목표 농도 설정: MEE로 들어가는 AC 스트림의 목표 농도 = 4000 g/L**
-    target_concentration = 6000  # g/L
+    target_concentration = 4000  # g/L
 
     # --- 5. Recycle Streams ---
     recycle_dc = bst.Stream('recycle_dc')
@@ -117,24 +117,20 @@ def create_VFA_sys(ins, outs):
             current_concentration = (total_vfa_mass / total_solution_volume) * 1000  # g/L 변환
         else:
             print("⚠ Warning: AC solution volume is too low or zero. Skipping concentration adjustment.")
-            return
+            current_concentration = 0  # 오류 방지
+            return  # 추가적인 계산을 수행하지 않고 함수 종료
     
         # 목표 농도 미달 시 멤브레인 면적 조정
         if current_concentration < target_concentration and current_concentration > 0:
             concentration_ratio = target_concentration / current_concentration
-            new_A_m = S401.A_m * min(concentration_ratio, 1.5)  # 최대 1.5배 증가 제한
-            S401.A_m = new_A_m
-    
-            # 🔹 **ED 디자인 강제 업데이트**
-            S401._design()
-    
+            S401.A_m *= min(concentration_ratio, 1.5)  # 급격한 변화를 방지 (최대 1.5배 증가)
             print(f"🔹 Updated ED Membrane Area: {S401.A_m:.4f} m²")
     
         # AC Tank 체류시간 업데이트
-        T302.tau = max(total_vfa_mass / (eff_ac.F_vol + 1e-6), 1.0)
-        T302._design()  # **AC Tank 디자인 강제 반영**
+        T302.tau = max(total_vfa_mass / (eff_ac.F_vol + 1e-6), 1.0)  # 최소 체류시간 1시간 보장
         print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
 
+        
     # --- 6. DC Output Handling (재순환 포함) ---
     S_DC = bst.Splitter(
         'S_DC',
@@ -195,16 +191,19 @@ def create_VFA_sys(ins, outs):
 # VFA System
 VFA_sys = create_VFA_sys()
 VFA_sys.diagram('cluster', number=True, format='png')
-#%% 시뮬레이션 실행
+#%%
 VFA_sys.simulate()
 VFA_sys.show()
-# **최신 디자인 결과 반영**
-F.unit['S401']._design()
+#%%
+# DC/AC Tank의 체류 시간과 ED 유닛의 디자인 결과 출력
+dc_tank = F.unit['dc_tank']
+ac_tank = F.unit['ac_tank']
+ed_unit = F.unit['S401']
 
-# **최종 결과 출력**
+# 결과 출력
 print("--- DC/AC Tank and ED Design Information ---")
-print(f"DC Tank Residence Time (tau): {F.unit['dc_tank'].tau} hr, Total Volume: {F.unit['dc_tank'].design_results['Total volume']:.4f} m³")
-print(f"AC Tank Residence Time (tau): {F.unit['ac_tank'].tau} hr, Total Volume: {F.unit['ac_tank'].design_results['Total volume']:.4f} m³")
-print(f"ED Required Membrane Area (A_m): {F.unit['S401'].design_results['Membrane area']:.4f} m²")
-print(f"ED Adjusted Current Density (j): {F.unit['S401'].j:.4f} A/m²")
-print(f"ED Power Consumption: {F.unit['S401'].design_results['Power consumption']:.4f} W")
+print(f"DC Tank Residence Time (tau): {dc_tank.tau} hr, Total Volume: {dc_tank.design_results['Total volume']:.4f} m³")
+print(f"AC Tank Residence Time (tau): {ac_tank.tau} hr, Total Volume: {ac_tank.design_results['Total volume']:.4f} m³")
+print(f"ED Required Membrane Area (A_m): {ed_unit.design_results['Membrane area']:.4f} m²")
+print(f"ED Adjusted Current Density (j): {ed_unit.j:.4f} A/m²")
+print(f"ED Power Consumption: {ed_unit.design_results['Power consumption']:.4f} W")
