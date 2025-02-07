@@ -274,7 +274,21 @@ class ED(bst.Unit):
 
             eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer
             eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer
-
+            
+    _units = {
+        'Membrane area': 'm^2',
+        'System resistance': 'Ohm',
+        'System voltage': 'V',
+        'Power consumption': 'W',
+        'Total current': 'A',
+    }
+    def _design(self):
+        D = self.design_results
+        D['Membrane area'] = self.A_m
+        D['Total current'] = self.j * self.A_m
+        D['System resistance'] = self.R
+        D['System voltage'] = D['Total current'] * self.R
+        D['Power consumption'] = D['System voltage'] * D['Total current']
 
 #%% Crystallization (BatchCrystallizer)
 #%%
