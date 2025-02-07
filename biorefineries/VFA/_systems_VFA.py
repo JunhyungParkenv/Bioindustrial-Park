@@ -104,7 +104,6 @@ def create_VFA_sys(ins, outs):
         target_concentration=target_concentration
     )
 
-    # **🔹 목표 농도를 맞추도록 ED 및 Tank 업데이트**
     @S401.add_specification(run=True)
     def update_ed_parameters():
         """ED 유닛과 AC Tank 설정 업데이트"""
@@ -117,18 +116,24 @@ def create_VFA_sys(ins, outs):
             current_concentration = (total_vfa_mass / total_solution_volume) * 1000  # g/L 변환
         else:
             print("⚠ Warning: AC solution volume is too low or zero. Skipping concentration adjustment.")
-            current_concentration = 0  # 오류 방지
             return  # 추가적인 계산을 수행하지 않고 함수 종료
     
         # 목표 농도 미달 시 멤브레인 면적 조정
         if current_concentration < target_concentration and current_concentration > 0:
-            concentration_ratio = target_concentration / current_concentration
-            S401.A_m *= min(concentration_ratio, 1.5)  # 급격한 변화를 방지 (최대 1.5배 증가)
+            # 🔹 새로운 면적 계산 로직 적용
+            I = S401.j * S401.A_m  # 총 전류
+            flux_dict = S401.calculate_flux(I)
+            total_flux = sum(flux_dict.values())  # 전체 플럭스 계산
+            total_moles_to_transfer = total_vfa_mass / 60.05  # kg → kmol 변환 (VFA 평균 분자량 60.05 g/mol)
+    
+            new_A_m = S401.calculate_membrane_area(total_moles_to_transfer, total_flux)
+            S401.A_m = min(new_A_m, S401.A_m * 1.5)  # 급격한 변화를 방지
             print(f"🔹 Updated ED Membrane Area: {S401.A_m:.4f} m²")
     
         # AC Tank 체류시간 업데이트
         T302.tau = max(total_vfa_mass / (eff_ac.F_vol + 1e-6), 1.0)  # 최소 체류시간 1시간 보장
         print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
+
 
         
     # --- 6. DC Output Handling (재순환 포함) ---

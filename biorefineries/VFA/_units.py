@@ -251,6 +251,16 @@ class ED(bst.Unit):
         self.z_T = z_T  # 이온 전하수
         self.t = t  # 작동 시간 (초)
         self.target_concentration = target_concentration  # 목표 농도 (g/L)
+        
+    def calculate_flux(self, I):
+        """이온별 플럭스 계산"""
+        return {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
+
+    def calculate_membrane_area(self, total_moles_to_transfer, total_flux):
+        """필요한 멤브레인 면적 계산"""
+        if total_flux == 0:  
+            return self.A_m  # 변화 없음
+        return total_moles_to_transfer / (total_flux * self.t)
 
     def _run(self):
         """ED 유닛 실행 (A_m은 시스템에서 조정)"""
@@ -289,168 +299,3 @@ class ED(bst.Unit):
         D['System resistance'] = self.R
         D['System voltage'] = D['Total current'] * self.R
         D['Power consumption'] = D['System voltage'] * D['Total current']
-
-#%% Crystallization (BatchCrystallizer)
-#%%
-# =============================================================================
-# Wastewater treatment
-# =============================================================================
-
-# Total cost of wastewater treatment is combined into this placeholder
-@cost(basis='Flow rate', ID='Wastewater system', units='kg/hr', 
-      kW=7018.90125, S=393100, cost=50280080, CE=CEPCI[2010], n=0.6, BM=1)
-class WastewaterSystemCost(Unit): pass
-
-class AnaerobicDigestion(Unit):
-    """	
-    Anaerobic digestion system as modeled by Humbird 2011	
-    	
-    Parameters	
-    ----------  	
-    ins :    	
-        [0] Wastewater	
-        	
-    outs :   	
-        [0] Biogas        	
-        [1] Treated water        	
-        [2] Sludge	
-        	
-    digestion_rxns: 
-        [ReactionSet] Anaerobic digestion reactions.  	
-    sludge_split: 
-        [Array] Split between wastewater and sludge	
-    	
-    """
-    auxiliary_unit_names = ('heat_exchanger',)
-    _N_ins = 1	
-    _N_outs = 3
-    
-    def __init__(self, ID='', ins=None, outs=(), *, reactants, split=(), T=35+273.15):	
-        Unit.__init__(self, ID, ins, outs)	
-        self.reactants = reactants	
-        self.isplit = isplit = self.thermo.chemicals.isplit(split, None)
-        self.split = isplit.data
-        self.multi_stream = MultiStream(None)
-        self.T = T
-        self.heat_exchanger = hx = HXutility(None, None, None, T=T) 
-        self.heat_utilities = hx.heat_utilities
-        chems = self.chemicals	
-        	
-        # Based on P49 in Humbird et al., 91% of organic components is destroyed,	
-        # of which 86% is converted to biogas and 5% is converted to sludge,	
-        # and the biogas is assumed to be 51% CH4 and 49% CO2 on a dry molar basis	
-        biogas_MW = 0.51*chems.CH4.MW + 0.49*chems.CO2.MW	
-        f_CH4 = 0.51 * 0.86/0.91/biogas_MW	
-        f_CO2 = 0.49 * 0.86/0.91/biogas_MW	
-        f_sludge = 0.05 * 1/0.91/chems.WWTsludge.MW	
-        	
-        def anaerobic_rxn(reactant):	
-            MW = getattr(chems, reactant).MW	
-            return Rxn(f'{1/MW}{reactant} -> {f_CH4}CH4 + {f_CO2}CO2 + {f_sludge}WWTsludge',	
-                       reactant, 0.91)	
-        self.digestion_rxns = ParallelRxn([anaerobic_rxn(i) for i in self.reactants])
-                	
-    def _run(self):	
-        wastewater = self.ins[0]	
-        biogas, treated_water, sludge = self.outs	
-        T = self.T	
-
-        sludge.copy_flow(wastewater)	
-        self.digestion_rxns(sludge.mol)	
-        self.multi_stream.copy_flow(sludge)	
-        self.multi_stream.vle(P=101325, T=T)	
-        biogas.mol = self.multi_stream.imol['g']	
-        biogas.phase = 'g'	
-        liquid_mol = self.multi_stream.imol['l']	
-        treated_water.mol = liquid_mol * self.split	
-        sludge.mol = liquid_mol - treated_water.mol	
-        # biogas.receive_vent(treated_water, accumulate=True)	
-        biogas.receive_vent(treated_water)
-        biogas.T = treated_water.T = sludge.T = T
-        
-    def _design(self):
-        wastewater = self.ins[0]
-        # Calculate utility needs to keep digester temperature at 35°C,	
-        # heat change during reaction is not tracked	
-        H_at_35C = wastewater.thermo.mixture.H(mol=wastewater.mol, 	
-                                               phase='l', T=self.T, P=101325)	
-        duty = -(wastewater.H - H_at_35C)
-        self.heat_exchanger.simulate_as_auxiliary_exchanger(duty, wastewater)
-  
-class AerobicDigestion(Unit):
-    """
-    Anaerobic digestion system as modeled by Humbird 2011
-    
-    Parameters
-    ----------
-    ins :  
-        [0] Wastewater        
-        [1] Air
-        [2] Caustic, added to neutralize the nitric acid produced by 
-            nitrifying bacteria duing nitrification process
-        
-    outs :    
-        [0] Vent
-        [1] Treated wastewater
-        
-    digestion_rxns : 
-        [ReactionSet] Anaerobic digestion reactions
-    
-    """
-    
-    _N_ins = 3
-    _N_outs = 2
-    # 4350, 4379, 356069, 2252, 2151522, and 109089 are water flows from 
-    # streams 622, 630, 611, 632, 621, and 616  in Humbird et al.
-    evaporation = 4350/(4379+356069+2252+2151522+109089)
-    
-    def __init__(self, ID='', ins=None, outs=(), *, reactants, ratio=0):
-        Unit.__init__(self, ID, ins, outs)
-        self.reactants = reactants
-        self.ratio = ratio
-        chems = self.chemicals
-        
-        def growth(reactant):
-            f = chems.WWTsludge.MW / getattr(chems, reactant).MW 
-            return Rxn(f"{f}{reactant} -> WWTsludge", reactant, 1.)
-        
-        # Reactions from auto-populated combustion reactions.
-        # Based on P49 in Humbird et al, 96% of remaining soluble organic matter 
-        # is removed after aerobic digestion, of which 74% is converted to
-        # water and CO2 and 22% to cell mass
-        combustion_rxns = chems.get_combustion_reactions()
-        
-        self.digestion_rxns = ParallelRxn([i*0.74 + 0.22*growth(i.reactant)
-                                           for i in combustion_rxns
-                                           if (i.reactant in reactants)])
-        self.digestion_rxns.X[:] = 0.96
-        
-        #                                      Reaction definition       Reactant Conversion
-        self.neutralization_rxn = Rxn('H2SO4 + 2 NaOH -> Na2SO4 + 2 H2O', 'H2SO4', 0.95)
-    
-    def _run(self):
-        influent, air, caustic = self.ins
-        vent, effluent = self.outs
-        ratio = self.ratio
-        vent.phase = 'g'
-
-        # 51061 and 168162 from stream 630 in Humbird et al.
-        air.imass['O2'] = 51061 * ratio
-        air.imass['N2'] = 168162 * ratio
-        # 2252 from stream 632 in Humbird et al
-        caustic.imass['NaOH'] = 2252 * ratio
-        caustic.imol['NaOH'] += 2 * influent.imol['H2SO4'] / self.neutralization_rxn.X
-        caustic.imass['H2O'] = caustic.imass['NaOH']
-        effluent.copy_like(influent)
-        effluent.mol += air.mol
-        effluent.mol += caustic.mol
-        self.neutralization_rxn(effluent.mol)
-        self.digestion_rxns(effluent.mol)
-        vent.copy_flow(effluent, ('CO2', 'O2', 'N2'), remove=True)
-        vent.imol['Water'] = effluent.imol['Water'] * self.evaporation
-        effluent.imol['Water'] -= vent.imol['Water']
-        
-        # Assume NaOH is completely consumed by H2SO4 and digestion products
-        effluent.imol['NaOH'] = 0
-#%% Simple unit operations
-
