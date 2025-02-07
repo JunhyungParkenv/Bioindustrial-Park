@@ -275,9 +275,9 @@ class ED(bst.Unit):
             # 유입 유량 계산 (AC Tank)
             volumetric_flow_ac = inf_ac.F_vol  
             
-            # AC Tank 체류시간 = 전이된 이온량 / AC Tank 유입 유량
-            # ac_tank.tau = (self.A_m * sum(self.calculate_flux(self.j * self.A_m).values()) * self.t) / (volumetric_flow_ac + 1e-6)  
-            ac_tank.tau = (self.A_m * sum(self.calculate_flux(self.j * self.A_m).values()) * self.t * self.target_removal_ratio) / (volumetric_flow_ac + 1e-6)
+            # 이동된 이온량 기반으로 체류시간 재계산
+            total_transferred_moles = self.A_m * sum(self.calculate_flux(self.j * self.A_m).values()) * self.t
+            ac_tank.tau = total_transferred_moles / (volumetric_flow_ac + 1e-6)
 
             # 체류시간 업데이트 후, 시스템에 변경 사항 적용
             dc_tank._design()  # DC Tank 크기 업데이트

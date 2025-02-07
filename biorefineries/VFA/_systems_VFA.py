@@ -107,7 +107,7 @@ def create_VFA_sys(ins, outs):
         outs=('treated_dc', 'treated_ac'),
         j=11.375,       # 전류 밀도
         t=24*3600,      # 작동 시간 (초)
-        target_removal_ratio=0.9  # DC의 80% 이온을 AC로 이동
+        target_removal_ratio=0.1  # DC의 80% 이온을 AC로 이동
     )
     
     # --- 6. DC Output Handling (재순환 포함) ---
