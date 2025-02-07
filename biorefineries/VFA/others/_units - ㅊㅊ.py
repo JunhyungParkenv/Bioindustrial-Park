@@ -225,9 +225,9 @@ class AC_Tank(MixTank):
         Design = self.design_results
         Design['Volume'] = feed.F_vol * self.tau  # 체류시간과 유량 기반 부피 계산
         super()._design()
-# --- Electrodialysis Unit (ED) ---  
-# Constants  
-F = 96485.3  # Faraday constant (C/mol)  
+# --- Electrodialysis Unit (ED) ---
+# Constants
+F = 96485.3  # Faraday constant (C/mol)
 
 @cost('Membrane area', 'CEM', cost=100, S=1, CE=567.3, n=1, BM=2)
 @cost('Membrane area', 'NF', cost=30, S=1, CE=567.3, n=1, BM=1.5)
@@ -235,23 +235,22 @@ F = 96485.3  # Faraday constant (C/mol)
 @cost('Membrane area', 'Coating Solution', cost=0.057282, S=1, CE=567.3, n=1, BM=1.1)
 @cost('Membrane area', 'Frames', cost=2, S=1, CE=567.3, n=1, BM=1.1)
 class ED(bst.Unit):
-    _N_ins = 2  # inf_dc, inf_ac  
-    _N_outs = 2  # eff_dc, eff_ac  
+    _N_ins = 2  # inf_dc, inf_ac
+    _N_outs = 2  # eff_dc, eff_ac
 
-    def __init__(self, ID='', ins=None, outs=(), thermo=None, CE_dict=None, j=5.058,  
-                 A_m=None, R=0.0000222, z_T=1.0, t=24*3600, target_removal_ratio=0.8, target_concentration=4000):
+    def __init__(self, ID='', ins=None, outs=(), thermo=None, CE_dict=None, j=5.058, 
+                 A_m=None, R=0.0000222, z_T=1.0, t=24*3600, target_removal_ratio=0.8):
         super().__init__(ID, ins, outs, thermo=thermo)
         self.CE_dict = CE_dict or {
             'AceticAcid': 0.164472, 'PropionicAcid': 0.082236, 'ButyricAcid': 0.059,
             'ValericAcid': 0.063118, 'LacticAcid': 0.082236, 'Water': 0.0
         }
-        self.j = j  # 전류 밀도 (A/m²)  
-        self.A_m = A_m or 1.0  # 초기 멤브레인 면적 (m²)  
-        self.R = R  # 시스템 저항 (Ohm)  
-        self.z_T = z_T  # 이온 전하수  
-        self.t = t  # 작동 시간 (초)  
-        self.target_removal_ratio = target_removal_ratio  # DC에서 제거할 이온의 비율 (80%)  
-        self.target_concentration = target_concentration  # 목표 농도 (g/L)
+        self.j = j  # 전류 밀도 (A/m²)
+        self.A_m = A_m or 1.0  # 초기 멤브레인 면적 (m²)
+        self.R = R  # 시스템 저항 (Ohm)
+        self.z_T = z_T  # 이온 전하수
+        self.t = t  # 작동 시간 (초)
+        self.target_removal_ratio = target_removal_ratio  # DC에서 제거할 이온의 비율 (80%)
 
     def calculate_flux(self, I):
         """이온별 플럭스 계산"""
@@ -273,11 +272,24 @@ class ED(bst.Unit):
             # DC Tank의 체류시간은 고정
             dc_tank.tau = 24  # 24시간 고정
 
-            # AC Tank 체류시간 업데이트
-            ac_tank.tau = 6  # 기본값 (나중에 재조정됨)
+            # 유입 유량 계산 (AC Tank)
+            volumetric_flow_ac = inf_ac.F_vol
+            
+            # 이동된 이온량 기반으로 체류시간 재계산
+            total_transferred_moles = self.A_m * sum(self.calculate_flux(self.j * self.A_m).values()) * self.t
+            calculated_tau = total_transferred_moles / (volumetric_flow_ac + 1e-6)
+
+            # 디버깅용 print 추가
+            print(f"⚡ Debug: AC Tank calculated tau (before limit) = {calculated_tau:.4f}")
+
+            # AC Tank의 체류시간 업데이트
+            ac_tank.tau = calculated_tau
             
             # AC Tank 디자인 업데이트
             ac_tank._design()
+
+            # AC Tank 디자인 업데이트 후 값 재확인
+            print(f"✅ AC Tank final tau = {ac_tank.tau:.4f}")
 
     def _run(self):
         """ED 유닛 실행"""
@@ -301,7 +313,7 @@ class ED(bst.Unit):
         J_T_dict = self.calculate_flux(I)
         total_flux = sum(J_T_dict.values())
 
-        # **🔹 새로운 멤브레인 면적 업데이트**
+        # 새로운 멤브레인 면적 업데이트
         self.A_m = self.calculate_membrane_area(total_moles_to_transfer, total_flux)
 
         total_transferred_vfa = 0
@@ -321,18 +333,12 @@ class ED(bst.Unit):
 
             if ion != 'LacticAcid':
                 total_transferred_vfa += actual_transfer
-
+                
         # **🔹 AC Tank 유입 유량 강제 업데이트**
         eff_ac.F_vol = inf_ac.F_vol + total_transferred_vfa  # AC 유입 유량 반영
-
-        # 🔹 AC 스트림의 목표 농도 맞추기
-        vfa_mass = eff_ac.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid'].sum()
-        water_mass = eff_ac.imass['Water']
-        current_concentration = vfa_mass / water_mass * 1000  # g/L 변환
-
-        if abs(current_concentration - self.target_concentration) > 50:
-            print(f"⚠ Warning: AC Output Concentration = {current_concentration:.2f} g/L, Target = {self.target_concentration} g/L")
-            print(f"🔹 Adjusting membrane area: {self.A_m:.4f} m²")
+        
+        eff_dc.imol['Water'] = inf_dc.imol['Water']
+        eff_ac.imol['Water'] = inf_ac.imol['Water']
 
     _units = {
         'Membrane area': 'm²',
@@ -350,7 +356,6 @@ class ED(bst.Unit):
         D['System resistance'] = self.R
         D['System voltage'] = D['Total current'] * self.R
         D['Power consumption'] = D['System voltage'] * D['Total current']
-
 
         
 #%% Crystallization (BatchCrystallizer)

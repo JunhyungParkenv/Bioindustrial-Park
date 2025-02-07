@@ -30,22 +30,20 @@ tmo.settings.set_thermo(chems)
 F = bst.Flowsheet('VFA_Recovery')
 bst.main_flowsheet.set_flowsheet(F)
 # %% System Definition
+# 시스템 모듈에서 target_concentration을 설정하여 ED 및 Tank 조정
 @SystemFactory(
     ID='VFA_sys',
     ins=[dict(ID='feedstock', units='kg/hr')],
     outs=[
-        dict(ID='stored_vfa', units='kg/hr'),     # 저장된 VFA
-        dict(ID='dc_output', units='kg/hr'),  # 배출수(폐수)
-        dict(ID='evaporated_water', units='kg/hr'),  # 증발된 물
-        dict(ID='biogas', units='kg/hr'),        # 기체 배출물 (메탄, CO2 등)
-        dict(ID='U302_cell_mass', units='kg/hr')    # 고체 폐기물 (세포 잔재물 등)
+        dict(ID='stored_vfa', units='kg/hr'), 
+        dict(ID='dc_output', units='kg/hr'),
+        dict(ID='evaporated_water', units='kg/hr'),
+        dict(ID='biogas', units='kg/hr'),
+        dict(ID='U302_cell_mass', units='kg/hr')
     ]
 )
 def create_VFA_sys(ins, outs):
-    """
-    VFA Recovery System: Anaerobic digestion and Electrodialysis-based separation
-    """
-    # Define Input and Output Streams
+    """VFA Recovery System: Anaerobic digestion and Electrodialysis-based separation"""
     feedstock = ins[0]
     stored_vfa, dc_output, evaporated_water, biogas, U302_cell_mass = outs
 
@@ -56,121 +54,107 @@ def create_VFA_sys(ins, outs):
 
     # --- 1. Anaerobic Digestion (UASB Reactor) ---
     R101 = _units.UASB('R101', ins=feedstock, outs=('vfa_solution', biogas))
-    
-    # print("R101 outputs:")
-    # print(f"VFA solution: {R101.outs[0].show()}")
-    # print(f"Biogas: {R101.outs[1].show()}")
-    
+
     # --- 2. Solid-Liquid Separation ---
     U302 = _units.CellMassFilter(
         'U302',
         ins=R101-0,  # vfa_solution
-        outs=(U302_cell_mass, 'vfa_filtered'),
-        moisture_content=None,
-        split=0.0
+        outs=(U302_cell_mass, 'vfa_filtered')
     )
-    
-    # print("U302 outputs:")
-    # print(f"Cell mass: {U302.outs[0].show()}")
-    # print(f"VFA filtered: {U302.outs[1].show()}")
-    
-    # --- 2.1 Split into inf_dc and inf_ac ---
+
+    # --- 3. Split into inf_dc and inf_ac ---
     S302 = bst.Splitter(
         'S302',
         ins=U302-1,  # vfa_filtered
         outs=('fresh_dc', 'fresh_ac'),
         split=0.8  # 80% inf_dc, 20% inf_ac
     )
-    
-    # --- 3. Recycle Streams ---
+
+    # **🔹 목표 농도 설정: MEE로 들어가는 AC 스트림의 목표 농도 = 4000 g/L**
+    target_concentration = 4000  # g/L
+
+    # --- 5. Recycle Streams ---
     recycle_dc = bst.Stream('recycle_dc')
     recycle_ac = bst.Stream('recycle_ac')
 
-    # --- 4. Mix Tanks ---
-    T301 = _units.MixTank(
+    # --- 6. Mix Tanks (DC Tank, AC Tank) ---
+    T301 = _units.DC_Tank(
         'dc_tank',
         ins=(S302-0, recycle_dc),
         outs='tank_to_dc',
-        tau=24
+        tau=24  # 기본값, 나중에 업데이트될 예정
     )
-    T302 = _units.MixTank(
+    T302 = _units.AC_Tank(
         'ac_tank',
         ins=(S302-1, recycle_ac),
         outs='tank_to_ac',
-        tau=None
-    )
-    
-    # --- 5. Electrodialysis (ED) Separation ---
-    S401 = _units.ED(
-        'S401',
-        ins=(T301-0, T302-0),  # 두 MixTank의 혼합 출력
-        outs=('treated_dc', 'treated_ac'),
-        j=11.375,       # 전류 밀도
-        t=24*3600,      # 작동 시간 (초)
-        target_removal_ratio=0.1  # DC의 80% 이온을 AC로 이동
-    )
-    
-    # --- AC Tank 체류시간 업데이트 ---
-    @T302.add_bounded_numerical_specification(x0=0.1, x1=48, xtol=1e-4, ytol=1e-4, x=6)
-    def update_ac_tank_tau(tau):
-        T302.tau = tau
-        T302._design()
-        return T302.design_results['Volume'] - S401.target_removal_ratio * 10  # 예제
-    
-    T302.add_specification()
-    
-    # --- 6. DC Output Handling (재순환 포함) ---
-    S_DC = bst.Splitter(
-        'S_DC',
-        ins=S401-0,  # ED의 DC 출력
-        outs=(recycle_dc, dc_output),
-        split=0.5 # 50% 재순환, 50% 배출
+        tau=None  # 나중에 업데이트됨
     )
 
-    # --- 7. AC Output Handling (재순환 포함) ---
+    # --- 7. Electrodialysis (ED) ---
+    S401 = _units.ED(
+        'S401',
+        ins=(T301-0, T302-0),
+        outs=('treated_dc', 'treated_ac'),
+        j=11.375,  # 전류 밀도
+        t=24*3600,  # 작동 시간 (초)
+        A_m=1.0,  # 초기값, 나중에 업데이트됨
+    )
+
+    # **🔹 목표 농도를 맞추도록 ED 및 Tank 업데이트**
+    @S401.add_specification(run=True)
+    def update_ed_parameters():
+        """ED 및 Tank 설정을 target_concentration에 맞게 업데이트"""
+        eff_ac = S401.outs[1]  # AC 스트림
+        total_vfa_mass = eff_ac.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid'].sum()  # VFA 총 질량 (g)
+        total_water_mass = eff_ac.imass['Water']  # 물 질량 (g)
+
+        # 현재 AC 스트림의 실제 농도 (g/L)
+        current_concentration = total_vfa_mass / total_water_mass * 1000  # g/L 변환
+
+        # 목표 농도까지의 차이를 계산하여 조정
+        if current_concentration < target_concentration:
+            concentration_ratio = target_concentration / current_concentration
+            S401.A_m *= concentration_ratio  # 멤브레인 면적 증가
+            print(f"🔹 Updated ED Membrane Area: {S401.A_m:.4f} m²")
+
+        # AC Tank 체류 시간 업데이트
+        ac_tank = T302
+        ac_tank.tau = total_vfa_mass / (eff_ac.F_vol + 1e-6)
+        ac_tank._design()
+        print(f"✅ Updated AC Tank tau: {ac_tank.tau:.4f} hr")
+
+    # --- 8. AC Output Handling (재순환 포함) ---
     S_AC = bst.Splitter(
         'S_AC',
         ins=S401-1,  # ED의 AC 출력
         outs=(recycle_ac, 'ac_for_MEE'),
-        split=0.1 # 50% 재순환, 50% MEE로 이동
+        split=0.1  # 10% 재순환, 90% MEE로 이동
     )
-    
-    # --- 8. Multi-Effect Evaporator (MEE) ---
+
+    # --- 9. Multi-Effect Evaporator (MEE) ---
     E101 = bst.MultiEffectEvaporator(
         'E101',
-        ins=S_AC-1,  # ac_for_MEE
+        ins=S_AC-1,  # `ac_for_MEE`가 4000 g/L 농도를 만족해야 함
         outs=('vfa_evaporated', evaporated_water),
         V=0,
         P=(101325, 73581, 50892, 32777, 20000)
     )
 
-    # --- 5. Crystallization ---
-    S201 = bst.BatchCrystallizer(
-        'S201',
-        ins=E101-0,
-        outs='solid_vfa',
-        tau=24,  # Residence time
-        N=6,  # Number of crystallizers
-        T=320.15  # Temperature
-    )
+    # --- 10. 확인: MEE 입력 농도 검증 ---
+    @E101.add_specification(run=True)
+    def verify_MEE_input():
+        """MEE에 들어가는 `ac_for_MEE`의 농도가 target_concentration을 만족하는지 확인"""
+        ac_for_MEE = S_AC.outs[1]
+        vfa_mass = ac_for_MEE.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid'].sum()
+        water_mass = ac_for_MEE.imass['Water']
+        actual_concentration = vfa_mass / water_mass * 1000  # g/L 변환
 
-    # --- 6. 추가적인 Drying (선택 가능) ---
-    D301 = bst.DrumDryer(
-        'D301',
-        ins=S201-0,  # Crystallizer output
-        outs='dried_vfa',
-        moisture_content=0.05,  # 최종 수분 함량 5% 목표
-        split={'Water': 0.95},  # 물 95% 제거
-        T=343.15  # 건조 온도 (섭씨 70도)
-    )
-    
-    # --- 7. Storage ---
-    T101 = bst.StorageTank(
-        'T101',
-        ins=D301-0,  # Dryer output
-        outs=stored_vfa,
-        tau=7*24  # Storage time
-    )
+        print(f"🔹 MEE Input Concentration: {actual_concentration:.2f} g/L (Target: {target_concentration} g/L)")
+        if abs(actual_concentration - target_concentration) > 50:
+            print("⚠ Warning: MEE 입력 농도가 목표 농도와 차이가 큼. ED 설정을 다시 조정하세요.")
+
+
 
     # Return all units for inspection (optional)
     # return [R101, U302, S401, E101, S201, T101]
