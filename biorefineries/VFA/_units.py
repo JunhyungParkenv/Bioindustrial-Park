@@ -225,6 +225,7 @@ class AC_Tank(MixTank):
         Design = self.design_results
         Design['Volume'] = feed.F_vol * self.tau  # 체류시간과 유량 기반 부피 계산
         super()._design()
+        
 # --- Electrodialysis Unit (ED) ---  
 # Constants  
 F = 96485.3  # Faraday constant (C/mol)  
@@ -273,22 +274,10 @@ class ED(bst.Unit):
             eff_ac.copy_like(inf_ac)
             return
 
-        # ✅ 전류량 계산
+        # 전류량 계산
         I = self.j * self.A_m
+        J_T_dict = {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
 
-        # ✅ 플럭스 계산
-        J_T_dict = self.calculate_flux(I)
-
-        # ✅ 목표로 이동해야 할 VFA 몰 수 계산
-        total_moles_to_transfer = sum(inf_dc.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
-
-        # ✅ 전체 플럭스 계산
-        total_flux = sum(J_T_dict.values())
-
-        # ✅ 새로운 멤브레인 면적 계산
-        self.A_m = self.calculate_membrane_area(total_moles_to_transfer, total_flux)
-
-        # ✅ 실제 이온 이동량 반영
         for ion in self.CE_dict:
             available_amount = inf_dc.imol[ion]
             n_transferred = J_T_dict[ion] * self.A_m * self.t
