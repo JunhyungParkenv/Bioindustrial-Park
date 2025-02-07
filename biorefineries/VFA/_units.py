@@ -254,13 +254,26 @@ class ED(bst.Unit):
         
     def calculate_flux(self, I):
         """이온별 플럭스 계산"""
-        return {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
-
+        flux_dict = {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
+        
+        # 전체 플럭스가 너무 작은 경우 기본값 설정 (값이 0이면 A_m이 무한대로 증가할 가능성이 있음)
+        total_flux = sum(flux_dict.values())
+        if total_flux < 1e-6:
+            print("⚠ Warning: Total flux is too low, setting minimum threshold.")
+            total_flux = 1e-6
+        return flux_dict
+    
     def calculate_membrane_area(self, total_moles_to_transfer, total_flux):
         """필요한 멤브레인 면적 계산"""
-        if total_flux == 0:  
+        if total_flux == 0:
+            print("⚠ Warning: Total flux is zero, returning default membrane area.")
             return self.A_m  # 변화 없음
-        return total_moles_to_transfer / (total_flux * self.t)
+        
+        new_A_m = total_moles_to_transfer / (total_flux * self.t)
+    
+        # A_m 값이 너무 작거나 큰 경우 보정 (최소값 0.1 m², 최대 10배 증가 제한)
+        return max(0.1, min(new_A_m, self.A_m * 10))
+
 
     def _run(self):
         """ED 유닛 실행 (A_m은 시스템에서 조정)"""

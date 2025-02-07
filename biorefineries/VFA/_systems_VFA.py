@@ -120,19 +120,21 @@ def create_VFA_sys(ins, outs):
     
         # 목표 농도 미달 시 멤브레인 면적 조정
         if current_concentration < target_concentration and current_concentration > 0:
-            # 🔹 새로운 면적 계산 로직 적용
             I = S401.j * S401.A_m  # 총 전류
             flux_dict = S401.calculate_flux(I)
             total_flux = sum(flux_dict.values())  # 전체 플럭스 계산
             total_moles_to_transfer = total_vfa_mass / 60.05  # kg → kmol 변환 (VFA 평균 분자량 60.05 g/mol)
     
+            # 변동 폭 제한: 0.9배 ~ 1.1배 범위 내에서 업데이트
             new_A_m = S401.calculate_membrane_area(total_moles_to_transfer, total_flux)
-            S401.A_m = min(new_A_m, S401.A_m * 1.5)  # 급격한 변화를 방지
-            print(f"🔹 Updated ED Membrane Area: {S401.A_m:.4f} m²")
+            if abs(new_A_m - S401.A_m) / S401.A_m > 0.05:  # 5% 이상 변화하는 경우에만 업데이트
+                S401.A_m = max(S401.A_m * 0.9, min(S401.A_m * 1.1, new_A_m))
+                print(f"🔹 Updated ED Membrane Area: {S401.A_m:.4f} m²")
     
         # AC Tank 체류시간 업데이트
         T302.tau = max(total_vfa_mass / (eff_ac.F_vol + 1e-6), 1.0)  # 최소 체류시간 1시간 보장
         print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
+
 
 
         
