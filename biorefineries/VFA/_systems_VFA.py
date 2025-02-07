@@ -110,6 +110,15 @@ def create_VFA_sys(ins, outs):
         target_removal_ratio=0.1  # DC의 80% 이온을 AC로 이동
     )
     
+    # --- AC Tank 체류시간 업데이트 ---
+    @T302.add_bounded_numerical_specification(x0=0.1, x1=48, xtol=1e-4, ytol=1e-4, x=6)
+    def update_ac_tank_tau(tau):
+        T302.tau = tau
+        T302._design()
+        return T302.design_results['Volume'] - S401.target_removal_ratio * 10  # 예제
+    
+    T302.add_specification()
+    
     # --- 6. DC Output Handling (재순환 포함) ---
     S_DC = bst.Splitter(
         'S_DC',

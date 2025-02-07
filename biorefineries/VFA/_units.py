@@ -225,9 +225,9 @@ class AC_Tank(MixTank):
         Design = self.design_results
         Design['Volume'] = feed.F_vol * self.tau  # 체류시간과 유량 기반 부피 계산
         super()._design()
-# --- Electrodialysis Unit (ED) ---
-# Constants
-F = 96485.3  # Faraday constant (C/mol)
+# --- Electrodialysis Unit (ED) ---  
+# Constants  
+F = 96485.3  # Faraday constant (C/mol)  
 
 @cost('Membrane area', 'CEM', cost=100, S=1, CE=567.3, n=1, BM=2)
 @cost('Membrane area', 'NF', cost=30, S=1, CE=567.3, n=1, BM=1.5)
@@ -235,22 +235,22 @@ F = 96485.3  # Faraday constant (C/mol)
 @cost('Membrane area', 'Coating Solution', cost=0.057282, S=1, CE=567.3, n=1, BM=1.1)
 @cost('Membrane area', 'Frames', cost=2, S=1, CE=567.3, n=1, BM=1.1)
 class ED(bst.Unit):
-    _N_ins = 2  # inf_dc, inf_ac
-    _N_outs = 2  # eff_dc, eff_ac
+    _N_ins = 2  # inf_dc, inf_ac  
+    _N_outs = 2  # eff_dc, eff_ac  
 
-    def __init__(self, ID='', ins=None, outs=(), thermo=None, CE_dict=None, j=5.058, 
+    def __init__(self, ID='', ins=None, outs=(), thermo=None, CE_dict=None, j=5.058,  
                  A_m=None, R=0.0000222, z_T=1.0, t=24*3600, target_removal_ratio=0.8):
         super().__init__(ID, ins, outs, thermo=thermo)
         self.CE_dict = CE_dict or {
             'AceticAcid': 0.164472, 'PropionicAcid': 0.082236, 'ButyricAcid': 0.059,
             'ValericAcid': 0.063118, 'LacticAcid': 0.082236, 'Water': 0.0
         }
-        self.j = j  # 전류 밀도 (A/m²)
-        self.A_m = A_m or 1.0  # 초기 멤브레인 면적 (m²)
-        self.R = R  # 시스템 저항 (Ohm)
-        self.z_T = z_T  # 이온 전하수
-        self.t = t  # 작동 시간 (초)
-        self.target_removal_ratio = target_removal_ratio  # DC에서 제거할 이온의 비율 (80%)
+        self.j = j  # 전류 밀도 (A/m²)  
+        self.A_m = A_m or 1.0  # 초기 멤브레인 면적 (m²)  
+        self.R = R  # 시스템 저항 (Ohm)  
+        self.z_T = z_T  # 이온 전하수  
+        self.t = t  # 작동 시간 (초)  
+        self.target_removal_ratio = target_removal_ratio  # DC에서 제거할 이온의 비율 (80%)  
 
     def calculate_flux(self, I):
         """이온별 플럭스 계산"""
@@ -278,6 +278,10 @@ class ED(bst.Unit):
             # 이동된 이온량 기반으로 체류시간 재계산
             total_transferred_moles = self.A_m * sum(self.calculate_flux(self.j * self.A_m).values()) * self.t
             calculated_tau = total_transferred_moles / (volumetric_flow_ac + 1e-6)
+
+            # 최소 체류시간 설정 (안정성 확보)
+            min_tau = 0.1  # 최소 체류시간을 0.1시간으로 제한
+            calculated_tau = max(calculated_tau, min_tau)
 
             # 디버깅용 print 추가
             print(f"⚡ Debug: AC Tank calculated tau (before limit) = {calculated_tau:.4f}")
@@ -356,6 +360,7 @@ class ED(bst.Unit):
         D['System resistance'] = self.R
         D['System voltage'] = D['Total current'] * self.R
         D['Power consumption'] = D['System voltage'] * D['Total current']
+
 
         
 #%% Crystallization (BatchCrystallizer)
