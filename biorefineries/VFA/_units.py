@@ -235,108 +235,47 @@ F = 96485.3  # Faraday constant (C/mol)
 @cost('Membrane area', 'Coating Solution', cost=0.057282, S=1, CE=567.3, n=1, BM=1.1)
 @cost('Membrane area', 'Frames', cost=2, S=1, CE=567.3, n=1, BM=1.1)
 class ED(bst.Unit):
-    _N_ins = 2  # inf_dc, inf_ac  
-    _N_outs = 2  # eff_dc, eff_ac  
+    _N_ins = 2  # inf_dc, inf_ac
+    _N_outs = 2  # eff_dc, eff_ac
 
-    def __init__(self, ID='', ins=None, outs=(), thermo=None, CE_dict=None, j=5.058,  
-                 A_m=None, R=0.0000222, z_T=1.0, t=24*3600, target_removal_ratio=0.8, target_concentration=4000):
+    def __init__(self, ID='', ins=None, outs=(), thermo=None, CE_dict=None, j=5.058,
+                 A_m=1.0, R=0.0000222, z_T=1.0, t=24*3600, target_concentration=4000):
         super().__init__(ID, ins, outs, thermo=thermo)
         self.CE_dict = CE_dict or {
             'AceticAcid': 0.164472, 'PropionicAcid': 0.082236, 'ButyricAcid': 0.059,
             'ValericAcid': 0.063118, 'LacticAcid': 0.082236, 'Water': 0.0
         }
-        self.j = j  # 전류 밀도 (A/m²)  
-        self.A_m = A_m or 1.0  # 초기 멤브레인 면적 (m²)  
-        self.R = R  # 시스템 저항 (Ohm)  
-        self.z_T = z_T  # 이온 전하수  
-        self.t = t  # 작동 시간 (초)  
-        self.target_removal_ratio = target_removal_ratio  # DC에서 제거할 이온의 비율 (80%)  
+        self.j = j  # 전류 밀도 (A/m²)
+        self.A_m = A_m  # 멤브레인 면적 (m²), 시스템 모듈에서 조정
+        self.R = R  # 시스템 저항 (Ohm)
+        self.z_T = z_T  # 이온 전하수
+        self.t = t  # 작동 시간 (초)
         self.target_concentration = target_concentration  # 목표 농도 (g/L)
 
-    def calculate_flux(self, I):
-        """이온별 플럭스 계산"""
-        return {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
-
-    def calculate_membrane_area(self, total_moles_to_transfer, total_flux):
-        """필요한 멤브레인 면적 계산"""
-        if total_flux == 0:  
-            return self.A_m  
-        return total_moles_to_transfer / (total_flux * self.t)
-
     def _run(self):
-        """ED 유닛 실행"""
+        """ED 유닛 실행 (A_m은 시스템에서 조정)"""
         inf_dc, inf_ac = self.ins
         eff_dc, eff_ac = self.outs
 
-        self.update_tank_tau()
-
-        # DC의 초기 VFA 총량
         total_initial_vfa = sum(inf_dc.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
-        if total_initial_vfa == 0:  
+        if total_initial_vfa == 0:
             eff_dc.copy_like(inf_dc)
             eff_ac.copy_like(inf_ac)
             return
-        
-        # 목표로 이동해야 할 VFA 양 (80% 이동)
-        total_moles_to_transfer = total_initial_vfa * self.target_removal_ratio
 
-        # 전류 I 계산
+        # 전류량 계산
         I = self.j * self.A_m
-        J_T_dict = self.calculate_flux(I)
-        total_flux = sum(J_T_dict.values())
-
-        # **🔹 새로운 멤브레인 면적 업데이트**
-        self.A_m = self.calculate_membrane_area(total_moles_to_transfer, total_flux)
-
-        total_transferred_vfa = 0
+        J_T_dict = {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
 
         for ion in self.CE_dict:
             available_amount = inf_dc.imol[ion]
             n_transferred = J_T_dict[ion] * self.A_m * self.t
-
-            if ion != 'LacticAcid' and total_transferred_vfa < total_moles_to_transfer:
-                remaining_capacity = total_moles_to_transfer - total_transferred_vfa
-                actual_transfer = min(n_transferred, available_amount, remaining_capacity)
-            else:
-                actual_transfer = min(n_transferred, available_amount)
+            actual_transfer = min(n_transferred, available_amount)
 
             eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer
             eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer
 
-            if ion != 'LacticAcid':
-                total_transferred_vfa += actual_transfer
 
-        # **🔹 AC Tank 유입 유량 강제 업데이트**
-        eff_ac.F_vol = inf_ac.F_vol + total_transferred_vfa  # AC 유입 유량 반영
-
-        # 🔹 AC 스트림의 목표 농도 맞추기
-        vfa_mass = eff_ac.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid'].sum()
-        water_mass = eff_ac.imass['Water']
-        current_concentration = vfa_mass / water_mass * 1000  # g/L 변환
-
-        if abs(current_concentration - self.target_concentration) > 50:
-            print(f"⚠ Warning: AC Output Concentration = {current_concentration:.2f} g/L, Target = {self.target_concentration} g/L")
-            print(f"🔹 Adjusting membrane area: {self.A_m:.4f} m²")
-
-    _units = {
-        'Membrane area': 'm²',
-        'System resistance': 'Ohm',
-        'System voltage': 'V',
-        'Power consumption': 'W',
-        'Total current': 'A',
-    }
-
-    def _design(self):
-        """설계 결과 계산"""
-        D = self.design_results
-        D['Membrane area'] = self.A_m
-        D['Total current'] = self.j * self.A_m
-        D['System resistance'] = self.R
-        D['System voltage'] = D['Total current'] * self.R
-        D['Power consumption'] = D['System voltage'] * D['Total current']
-
-
-        
 #%% Crystallization (BatchCrystallizer)
 #%%
 # =============================================================================

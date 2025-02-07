@@ -106,30 +106,20 @@ def create_VFA_sys(ins, outs):
     # **🔹 목표 농도를 맞추도록 ED 및 Tank 업데이트**
     @S401.add_specification(run=True)
     def update_ed_parameters():
-        """ED 및 Tank 설정을 target_concentration에 맞게 업데이트"""
-        eff_ac = S401.outs[1]  # AC 스트림
-        total_vfa_mass = eff_ac.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid'].sum()  # VFA 총 질량 (g)
-        total_water_mass = eff_ac.imass['Water']  # 물 질량 (g)
+        """ED 유닛과 AC Tank 설정 업데이트"""
+        eff_ac = S401.outs[1]
+        total_vfa_mass = eff_ac.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid'].sum()
+        total_water_mass = eff_ac.imass['Water']
+        current_concentration = total_vfa_mass / total_water_mass * 1000
 
-        # 🔹 total_water_mass가 0이면 에러 방지
-        if total_water_mass > 1e-6:  
-            current_concentration = total_vfa_mass / total_water_mass * 1000  # g/L 변환
-        else:
-            print("⚠ Warning: Water mass is too low or zero in eff_ac. Skipping concentration adjustment.")
-            return  # 예외 발생 방지
-
-        # 목표 농도까지의 차이를 계산하여 조정
+        # 목표 농도 미달 시 멤브레인 면적 조정
         if current_concentration < target_concentration:
-            concentration_ratio = target_concentration / current_concentration
-            S401.A_m *= min(concentration_ratio, 1.5)  # 급격한 변화를 방지 (최대 1.5배 증가)
+            S401.A_m *= min(target_concentration / current_concentration, 1.5)
             print(f"🔹 Updated ED Membrane Area: {S401.A_m:.4f} m²")
 
-        # 🔹 AC Tank 체류 시간 업데이트 (ED 결과 반영)
-        ac_tank = T302
-        ac_tank.tau = total_vfa_mass / (eff_ac.F_vol + 1e-6)  # 최소값 보장
-        ac_tank.tau = max(ac_tank.tau, 1.0)  # 최소 체류 시간 1시간 설정
-        ac_tank._design()
-        print(f"✅ Updated AC Tank tau: {ac_tank.tau:.4f} hr")
+        # AC Tank 체류시간 업데이트
+        T302.tau = max(total_vfa_mass / (eff_ac.F_vol + 1e-6), 1.0)
+        print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
         
     # --- 6. DC Output Handling (재순환 포함) ---
     S_DC = bst.Splitter(
