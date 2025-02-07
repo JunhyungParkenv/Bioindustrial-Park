@@ -263,22 +263,6 @@ class ED(bst.Unit):
             return self.A_m  
         return total_moles_to_transfer / (total_flux * self.t)
 
-    def update_tank_tau(self):
-        """DC/AC 탱크의 체류시간 자동 업데이트 (Flux 기반)"""
-        inf_dc, inf_ac = self.ins
-        dc_tank = inf_dc._source
-        ac_tank = inf_ac._source
-
-        if isinstance(dc_tank, DC_Tank) and isinstance(ac_tank, AC_Tank):
-            # DC Tank의 체류시간은 고정
-            dc_tank.tau = 24  # 24시간 고정
-
-            # AC Tank 체류시간 업데이트
-            ac_tank.tau = 6  # 기본값 (나중에 재조정됨)
-            
-            # AC Tank 디자인 업데이트
-            ac_tank._design()
-
     def _run(self):
         """ED 유닛 실행"""
         inf_dc, inf_ac = self.ins

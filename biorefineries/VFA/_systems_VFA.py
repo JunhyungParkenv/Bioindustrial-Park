@@ -59,7 +59,9 @@ def create_VFA_sys(ins, outs):
     U302 = _units.CellMassFilter(
         'U302',
         ins=R101-0,  # vfa_solution
-        outs=(U302_cell_mass, 'vfa_filtered')
+        outs=(U302_cell_mass, 'vfa_filtered'),
+        moisture_content=None,
+        split=0.0
     )
 
     # --- 3. Split into inf_dc and inf_ac ---
@@ -109,27 +111,40 @@ def create_VFA_sys(ins, outs):
         total_vfa_mass = eff_ac.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid'].sum()  # VFA 총 질량 (g)
         total_water_mass = eff_ac.imass['Water']  # 물 질량 (g)
 
-        # 현재 AC 스트림의 실제 농도 (g/L)
-        current_concentration = total_vfa_mass / total_water_mass * 1000  # g/L 변환
+        # 🔹 total_water_mass가 0이면 에러 방지
+        if total_water_mass > 1e-6:  
+            current_concentration = total_vfa_mass / total_water_mass * 1000  # g/L 변환
+        else:
+            print("⚠ Warning: Water mass is too low or zero in eff_ac. Skipping concentration adjustment.")
+            return  # 예외 발생 방지
 
         # 목표 농도까지의 차이를 계산하여 조정
         if current_concentration < target_concentration:
             concentration_ratio = target_concentration / current_concentration
-            S401.A_m *= concentration_ratio  # 멤브레인 면적 증가
+            S401.A_m *= min(concentration_ratio, 1.5)  # 급격한 변화를 방지 (최대 1.5배 증가)
             print(f"🔹 Updated ED Membrane Area: {S401.A_m:.4f} m²")
 
-        # AC Tank 체류 시간 업데이트
+        # 🔹 AC Tank 체류 시간 업데이트 (ED 결과 반영)
         ac_tank = T302
-        ac_tank.tau = total_vfa_mass / (eff_ac.F_vol + 1e-6)
+        ac_tank.tau = total_vfa_mass / (eff_ac.F_vol + 1e-6)  # 최소값 보장
+        ac_tank.tau = max(ac_tank.tau, 1.0)  # 최소 체류 시간 1시간 설정
         ac_tank._design()
         print(f"✅ Updated AC Tank tau: {ac_tank.tau:.4f} hr")
-
+        
+    # --- 6. DC Output Handling (재순환 포함) ---
+    S_DC = bst.Splitter(
+        'S_DC',
+        ins=S401-0,  # ED의 DC 출력
+        outs=(recycle_dc, dc_output),
+        split=0.5 # 50% 재순환, 50% 배출
+    )
+    
     # --- 8. AC Output Handling (재순환 포함) ---
     S_AC = bst.Splitter(
         'S_AC',
         ins=S401-1,  # ED의 AC 출력
         outs=(recycle_ac, 'ac_for_MEE'),
-        split=0.1  # 10% 재순환, 90% MEE로 이동
+        split=0.5  # 10% 재순환, 90% MEE로 이동
     )
 
     # --- 9. Multi-Effect Evaporator (MEE) ---
@@ -141,20 +156,33 @@ def create_VFA_sys(ins, outs):
         P=(101325, 73581, 50892, 32777, 20000)
     )
 
-    # --- 10. 확인: MEE 입력 농도 검증 ---
-    @E101.add_specification(run=True)
-    def verify_MEE_input():
-        """MEE에 들어가는 `ac_for_MEE`의 농도가 target_concentration을 만족하는지 확인"""
-        ac_for_MEE = S_AC.outs[1]
-        vfa_mass = ac_for_MEE.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid'].sum()
-        water_mass = ac_for_MEE.imass['Water']
-        actual_concentration = vfa_mass / water_mass * 1000  # g/L 변환
+    # --- 5. Crystallization ---
+    S201 = bst.BatchCrystallizer(
+        'S201',
+        ins=E101-0,
+        outs='solid_vfa',
+        tau=24,  # Residence time
+        N=6,  # Number of crystallizers
+        T=320.15  # Temperature
+    )
 
-        print(f"🔹 MEE Input Concentration: {actual_concentration:.2f} g/L (Target: {target_concentration} g/L)")
-        if abs(actual_concentration - target_concentration) > 50:
-            print("⚠ Warning: MEE 입력 농도가 목표 농도와 차이가 큼. ED 설정을 다시 조정하세요.")
-
-
+    # --- 6. 추가적인 Drying (선택 가능) ---
+    D301 = bst.DrumDryer(
+        'D301',
+        ins=S201-0,  # Crystallizer output
+        outs='dried_vfa',
+        moisture_content=0.05,  # 최종 수분 함량 5% 목표
+        split={'Water': 0.95},  # 물 95% 제거
+        T=343.15  # 건조 온도 (섭씨 70도)
+    )
+    
+    # --- 7. Storage ---
+    T101 = bst.StorageTank(
+        'T101',
+        ins=D301-0,  # Dryer output
+        outs=stored_vfa,
+        tau=7*24  # Storage time
+    )
 
     # Return all units for inspection (optional)
     # return [R101, U302, S401, E101, S201, T101]
@@ -179,39 +207,3 @@ print(f"AC Tank Residence Time (tau): {ac_tank.tau} hr, Total Volume: {ac_tank.d
 print(f"ED Required Membrane Area (A_m): {ed_unit.design_results['Membrane area']:.4f} m²")
 print(f"ED Adjusted Current Density (j): {ed_unit.j:.4f} A/m²")
 print(f"ED Power Consumption: {ed_unit.design_results['Power consumption']:.4f} W")
-
-# # Electrodialysis (ED) 유닛의 멤브레인 면적(A_m) 및 전류 밀도(j) 출력
-# ED_unit = F.unit.S401  # ED 유닛 불러오기
-# A_m = ED_unit.design_results['Membrane area']
-# j = ED_unit.j
-# # 결과 출력
-# print(f"✅ Required Membrane Area (Aₘ): {A_m:.2f} m²")
-# print(f"✅ Current Density (j): {j:.2f} A/m²")
-#%%
-# ✅ `VFA_sys` 시뮬레이션 실행 후 `S401` 유닛 가져오기
-# S401 = VFA_sys.flowsheet.unit.S401  # ED 유닛 가져오기
-# S401._design()  # ✅ 설계 값 업데이트
-# ✅ Membrane Area 한 번만 출력
-# print(f"✅ Optimal Membrane Area: {S401.A_m:.3f} m²")
-#%% 📌 **Membrane Area vs. Current Density 관계 분석**
-# j_values = np.linspace(1, 15, 10)  # 전류 밀도 범위 설정 (1~15 mA/cm²)
-# results = []
-
-# for j in j_values:
-#     S401.j = j  
-#     S401._run()  # ✅ ED 프로세스 실행
-#     S401._design()  # ✅ 설계 값 업데이트
-#     results.append((j, S401.A_m, S401.design_results['Total current'], S401.design_results['Power consumption']))
-
-# # ✅ 데이터프레임 생성
-# df = pd.DataFrame(results, columns=["Current Density (mA/cm²)", "Membrane Area (m²)", "Total Current (A)", "Power Consumption (W)"])
-
-# # ✅ 그래프 출력
-# plt.figure(figsize=(8, 5))
-# plt.plot(df["Current Density (mA/cm²)"], df["Membrane Area (m²)"], marker="o", linestyle="-", label="Membrane Area")
-# plt.xlabel("Current Density (mA/cm²)")
-# plt.ylabel("Membrane Area (m²)")
-# plt.title("Membrane Area vs. Current Density in ED")
-# plt.grid(True)
-# plt.legend()
-# plt.show()
