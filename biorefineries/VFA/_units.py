@@ -281,7 +281,6 @@ class ED(bst.Unit):
 
 
             # 체류시간 업데이트 후, 시스템에 변경 사항 적용
-            dc_tank._design()  # DC Tank 크기 업데이트
             ac_tank._design()  # AC Tank 크기 업데이트
 
             print(f"✅ DC Tank tau: {dc_tank.tau} hr, AC Tank tau: {ac_tank.tau:.4f} hr (Flux 기반)")
