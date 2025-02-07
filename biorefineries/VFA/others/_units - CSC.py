@@ -252,16 +252,6 @@ class ED(bst.Unit):
         self.t = t  # 작동 시간 (초)
         self.target_concentration = target_concentration  # 목표 농도 (g/L)
 
-    def calculate_flux(self, I):
-        """전류량 I를 기반으로 플럭스(J_T_dict) 계산"""
-        return {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
-
-    def calculate_membrane_area(self, total_moles_to_transfer, total_flux):
-        """필요한 멤브레인 면적(A_m) 계산"""
-        if total_flux > 0:
-            return total_moles_to_transfer / (total_flux * self.t)
-        return self.A_m  # 플럭스가 0이면 기존 값 유지
-
     def _run(self):
         """ED 유닛 실행 (A_m은 시스템에서 조정)"""
         inf_dc, inf_ac = self.ins
@@ -273,22 +263,10 @@ class ED(bst.Unit):
             eff_ac.copy_like(inf_ac)
             return
 
-        # ✅ 전류량 계산
+        # 전류량 계산
         I = self.j * self.A_m
+        J_T_dict = {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
 
-        # ✅ 플럭스 계산
-        J_T_dict = self.calculate_flux(I)
-
-        # ✅ 목표로 이동해야 할 VFA 몰 수 계산
-        total_moles_to_transfer = sum(inf_dc.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
-
-        # ✅ 전체 플럭스 계산
-        total_flux = sum(J_T_dict.values())
-
-        # ✅ 새로운 멤브레인 면적 계산
-        self.A_m = self.calculate_membrane_area(total_moles_to_transfer, total_flux)
-
-        # ✅ 실제 이온 이동량 반영
         for ion in self.CE_dict:
             available_amount = inf_dc.imol[ion]
             n_transferred = J_T_dict[ion] * self.A_m * self.t
@@ -304,16 +282,13 @@ class ED(bst.Unit):
         'Power consumption': 'W',
         'Total current': 'A',
     }
-
     def _design(self):
-        """ED 유닛 디자인 계산"""
         D = self.design_results
         D['Membrane area'] = self.A_m
         D['Total current'] = self.j * self.A_m
         D['System resistance'] = self.R
         D['System voltage'] = D['Total current'] * self.R
         D['Power consumption'] = D['System voltage'] * D['Total current']
-
 
 #%% Crystallization (BatchCrystallizer)
 #%%

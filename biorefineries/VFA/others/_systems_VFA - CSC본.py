@@ -111,27 +111,21 @@ def create_VFA_sys(ins, outs):
         eff_ac = S401.outs[1]
         total_vfa_mass = eff_ac.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid'].sum()  # VFA 질량 (kg)
         total_solution_volume = eff_ac.F_vol  # 전체 용액 부피 (L)
-
+    
         # **🔹 방어 코드 추가 (물 부피가 0이면 오류 방지)**
         if total_solution_volume > 1e-6:
             current_concentration = (total_vfa_mass / total_solution_volume) * 1000  # g/L 변환
         else:
             print("⚠ Warning: AC solution volume is too low or zero. Skipping concentration adjustment.")
+            current_concentration = 0  # 오류 방지
             return  # 추가적인 계산을 수행하지 않고 함수 종료
-
-        # 목표 농도 미달 시 멤브레인 면적 조정 (전류량 기반)
+    
+        # 목표 농도 미달 시 멤브레인 면적 조정
         if current_concentration < target_concentration and current_concentration > 0:
-            I = S401.j * S401.A_m  # 전류량 계산
-            J_T_dict = S401.calculate_flux(I)  # 플럭스 계산
-            total_flux = sum(J_T_dict.values())
-
-            # 목표 VFA 이동량 계산
-            total_moles_to_transfer = sum(eff_ac.imol[ion] for ion in S401.CE_dict if ion != 'LacticAcid')
-
-            # 멤브레인 면적 업데이트
-            S401.A_m = S401.calculate_membrane_area(total_moles_to_transfer, total_flux)
+            concentration_ratio = target_concentration / current_concentration
+            S401.A_m *= min(concentration_ratio, 1.5)  # 급격한 변화를 방지 (최대 1.5배 증가)
             print(f"🔹 Updated ED Membrane Area: {S401.A_m:.4f} m²")
-
+    
         # AC Tank 체류시간 업데이트
         T302.tau = max(total_vfa_mass / (eff_ac.F_vol + 1e-6), 1.0)  # 최소 체류시간 1시간 보장
         print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
