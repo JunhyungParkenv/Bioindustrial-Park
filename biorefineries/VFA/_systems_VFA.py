@@ -123,7 +123,7 @@ def create_VFA_sys(ins, outs):
         'S_AC',
         ins=S401-1,  # ED의 AC 출력
         outs=(recycle_ac, 'ac_for_MEE'),
-        split=0.5 # 50% 재순환, 50% MEE로 이동
+        split=0.1 # 50% 재순환, 50% MEE로 이동
     )
     
     # --- 8. Multi-Effect Evaporator (MEE) ---
