@@ -255,12 +255,18 @@ class ED(bst.Unit):
 
     def calculate_flux(self, I):
         """전류량 I를 기반으로 플럭스(J_T_dict) 계산"""
+        if self.A_m <= 0:
+            print("⚠ Warning: Invalid membrane area (A_m <= 0). Resetting to 1.0 m²")
+            self.A_m = 1.0  # 비정상적인 값 방지
+    
         return {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
+
 
     def calculate_membrane_area(self, total_moles_to_transfer, total_flux):
         """필요한 멤브레인 면적(A_m) 계산"""
         if total_flux > 0:
             return total_moles_to_transfer / (total_flux * self.t)
+        print("⚠ Warning: Flux is zero, keeping previous A_m.")
         return self.A_m  # 플럭스가 0이면 기존 값 유지
 
     def _run(self):
