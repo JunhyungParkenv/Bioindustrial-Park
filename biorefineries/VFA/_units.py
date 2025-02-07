@@ -273,17 +273,23 @@ class ED(bst.Unit):
             dc_tank.tau = 24  # 24시간 고정
 
             # 유입 유량 계산 (AC Tank)
-            volumetric_flow_ac = inf_ac.F_vol  
+            volumetric_flow_ac = inf_ac.F_vol
             
             # 이동된 이온량 기반으로 체류시간 재계산
             total_transferred_moles = self.A_m * sum(self.calculate_flux(self.j * self.A_m).values()) * self.t
-            ac_tank.tau = max(total_transferred_moles / (volumetric_flow_ac + 1e-6), 0.1)  
+            calculated_tau = total_transferred_moles / (volumetric_flow_ac + 1e-6)
 
+            # 디버깅용 print 추가
+            print(f"⚡ Debug: AC Tank calculated tau (before limit) = {calculated_tau:.4f}")
 
-            # 체류시간 업데이트 후, 시스템에 변경 사항 적용
-            ac_tank._design()  # AC Tank 크기 업데이트
+            # AC Tank의 체류시간 업데이트
+            ac_tank.tau = calculated_tau
+            
+            # AC Tank 디자인 업데이트
+            ac_tank._design()
 
-            print(f"✅ DC Tank tau: {dc_tank.tau} hr, AC Tank tau: {ac_tank.tau:.4f} hr (Flux 기반)")
+            # AC Tank 디자인 업데이트 후 값 재확인
+            print(f"✅ AC Tank final tau = {ac_tank.tau:.4f}")
 
     def _run(self):
         """ED 유닛 실행"""
