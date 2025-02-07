@@ -125,18 +125,14 @@ def create_VFA_sys(ins, outs):
             total_flux = sum(flux_dict.values())  # 전체 플럭스 계산
             total_moles_to_transfer = total_vfa_mass / 60.05  # kg → kmol 변환 (VFA 평균 분자량 60.05 g/mol)
     
-            # 변동 폭 제한: 0.9배 ~ 1.1배 범위 내에서 업데이트
+            # **🔹 제한 없이 A_m 업데이트**
             new_A_m = S401.calculate_membrane_area(total_moles_to_transfer, total_flux)
-            if abs(new_A_m - S401.A_m) / S401.A_m > 0.05:  # 5% 이상 변화하는 경우에만 업데이트
-                S401.A_m = max(S401.A_m * 0.9, min(S401.A_m * 1.1, new_A_m))
-                print(f"🔹 Updated ED Membrane Area: {S401.A_m:.4f} m²")
+            S401.A_m = new_A_m  # 제한 없이 업데이트
+            print(f"🔹 Updated ED Membrane Area: {S401.A_m:.4f} m²")
     
         # AC Tank 체류시간 업데이트
         T302.tau = max(total_vfa_mass / (eff_ac.F_vol + 1e-6), 1.0)  # 최소 체류시간 1시간 보장
         print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
-
-
-
         
     # --- 6. DC Output Handling (재순환 포함) ---
     S_DC = bst.Splitter(
