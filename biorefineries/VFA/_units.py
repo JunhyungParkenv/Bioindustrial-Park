@@ -327,7 +327,10 @@ class ED(bst.Unit):
 
             if ion != 'LacticAcid':
                 total_transferred_vfa += actual_transfer
-
+                
+        # **🔹 AC Tank 유입 유량 강제 업데이트**
+        eff_ac.F_vol = inf_ac.F_vol + total_transferred_vfa  # AC 유입 유량 반영
+        
         eff_dc.imol['Water'] = inf_dc.imol['Water']
         eff_ac.imol['Water'] = inf_ac.imol['Water']
 
