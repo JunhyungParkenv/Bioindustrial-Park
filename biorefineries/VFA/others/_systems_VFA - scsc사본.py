@@ -103,32 +103,49 @@ def create_VFA_sys(ins, outs):
         A_m=1.0,  # 초기 멤브레인 면적, 이후 업데이트됨
         target_concentration=target_concentration
     )
-    # --- 7. Electrodialysis (ED) ---
-    S401 = _units.ED(
-        'S401',
-        ins=(T301-0, T302-0),  # inf_dc, inf_ac
-        outs=(dc_output, 'ac_output'),  # Outputs for DC and AC
-        j=11.375,  # Current density
-        t=24*3600,  # Time in seconds
-        target_ratio=0.8
-    )
     
-    # def update_ac_tau_based_on_flux(total_flux):
-    #     """AC 탱크 체류시간을 플럭스(total_flux)에 맞게 조정"""
-    #     T302._design()  # AC Tank의 design_results 강제 업데이트
+    @S401.add_specification(run=True)
+    def update_ed_parameters():
+        """ED 유닛과 AC Tank 설정 업데이트"""
+        eff_ac = S401.outs[1]
+        total_vfa_mass = eff_ac.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid'].sum()  # kg/hr
+        total_solution_volume = eff_ac.F_vol # m3/hr
+    
+        if total_solution_volume > 1e-6:
+            current_concentration = (total_vfa_mass / total_solution_volume)  # kg/m3 = g/L
+        else:
+            print("⚠ Warning: AC solution volume is too low or zero. Skipping concentration adjustment.")
+            return
+    
+        if current_concentration < target_concentration and current_concentration > 0:
+            I = S401.j * S401.A_m  # 총 전류
+            flux_dict = S401.calculate_flux(I)
+            total_flux = sum(flux_dict.values())  # mol/(m2*s)
+            total_moles_to_transfer = total_vfa_mass / 60.05  # kg → kmol 변환 (VFA 평균 분자량 60.05 g/mol, kmol/hr)
+    
+            new_A_m = S401.calculate_membrane_area(total_moles_to_transfer, total_flux)
+            S401.A_m = new_A_m
+            print(f"🔹 Updated ED Membrane Area: {S401.A_m:.4f} m²")
+    
+            # 🔹 flux 기반으로 AC Tank tau 업데이트
+            update_ac_tau_based_on_flux(total_flux)
+    
+    def update_ac_tau_based_on_flux(total_flux):
+        """AC 탱크 체류시간을 플럭스(total_flux)에 맞게 조정"""
+        T302._design()  # AC Tank의 design_results 강제 업데이트
         
-    #     # 목표 농도 (mol/m³) - Target Concentration 반영
-    #     C_target = (target_concentration / 60.05) / 1000  # g/L → mol/m³ 변환
+        # 목표 농도 (mol/m³) - Target Concentration 반영
+        C_target = (target_concentration / 60.05) / 1000  # g/L → mol/m³ 변환
         
-    #     # ED에서 총 이동한 mol 수
-    #     total_mol_transferred = total_flux * S401.A_m * S401.t  # mol
+        # ED에서 총 이동한 mol 수
+        total_mol_transferred = total_flux * S401.A_m * S401.t  # mol
         
-    #     # AC Tank 체류 시간 계산 (hr)
-    #     T302.tau = max((T302.design_results['Volume'] * C_target) / (total_mol_transferred + 1e-6), 1.0)
-    #     print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
+        # AC Tank 체류 시간 계산 (hr)
+        T302.tau = max((T302.design_results['Volume'] * C_target) / (total_mol_transferred + 1e-6), 1.0)
+        print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
         
-    #     # T302.tau = max(T302.design_results['Volume'] / (total_flux * S401.A_m * S401.t), 1.0)
-    #     # print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
+        # T302.tau = max(T302.design_results['Volume'] / (total_flux * S401.A_m * S401.t), 1.0)
+        # print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
 
     # --- 6. DC Output Handling (재순환 포함) ---
     S_DC = bst.Splitter(

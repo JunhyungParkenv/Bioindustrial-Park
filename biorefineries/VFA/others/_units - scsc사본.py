@@ -226,8 +226,9 @@ class AC_Tank(MixTank):
         Design['Volume'] = feed.F_vol * self.tau  # 체류시간과 유량 기반 부피 계산
         super()._design()
 # --- Electrodialysis Unit (ED) ---  
-# Constants
-F = 96485.3  # Faraday constant in Coulombs/mol
+# Constants  
+F = 96485.3  # Faraday constant (C/mol)  
+
 @cost('Membrane area', 'CEM', cost=100, S=1, CE=567.3, n=1, BM=2)
 @cost('Membrane area', 'NF', cost=30, S=1, CE=567.3, n=1, BM=1.5)
 @cost('Membrane area', 'Current Collector', cost=20, S=1, CE=567.3, n=1, BM=1.2)
@@ -237,69 +238,61 @@ class ED(bst.Unit):
     _N_ins = 2  # inf_dc, inf_ac
     _N_outs = 2  # eff_dc, eff_ac
 
-    def __init__(self, ID='', ins=None, outs=(), thermo=None, CE_dict=None, j=5.058, 
-                 A_m=None, R=0.0000222, z_T=1.0, t=24*3600, target_ratio=0.8):
+    def __init__(self, ID='', ins=None, outs=(), thermo=None, CE_dict=None, j=5.058,
+                 A_m=1.0, R=0.0000222, z_T=1.0, t=24*3600, target_concentration=4000):
         super().__init__(ID, ins, outs, thermo=thermo)
         self.CE_dict = CE_dict or {
             'AceticAcid': 0.164472, 'PropionicAcid': 0.082236, 'ButyricAcid': 0.059,
             'ValericAcid': 0.063118, 'LacticAcid': 0.082236, 'Water': 0.0
         }
-        self.j = j
-        self.A_m = A_m if A_m is not None else 1.0
-        self.R = R
-        self.z_T = z_T
-        self.t = t
-        self.target_ratio = target_ratio
-
+        self.j = j  # 전류 밀도 (A/m²)
+        self.A_m = A_m  # 멤브레인 면적 (m²), 시스템 모듈에서 조정
+        self.R = R  # 시스템 저항 (Ohm)
+        self.z_T = z_T  # 이온 전하수
+        self.t = t  # 작동 시간 (초)
+        self.target_concentration = target_concentration  # 목표 농도 (g/L)
+        
     def calculate_flux(self, I):
-        J_T_dict = {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
-        return J_T_dict
+        """이온별 플럭스 계산"""
+        return {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()} # mol/(m2*s)
 
+    
     def calculate_membrane_area(self, total_moles_to_transfer, total_flux):
-        A_m = total_moles_to_transfer / (total_flux * self.t)
-        return A_m
+        """필요한 멤브레인 면적 계산"""
+        if total_flux == 0:
+            print("⚠ Warning: Total flux is zero, returning default membrane area.")
+            return self.A_m  # 변화 없음
+        
+        new_A_m = (total_moles_to_transfer * 1000) / (total_flux * self.t) # m2
+        
+        return new_A_m  # 제한 없이 업데이트
+
 
     def _run(self):
+        """ED 유닛 실행 (A_m은 시스템에서 조정)"""
         inf_dc, inf_ac = self.ins
         eff_dc, eff_ac = self.outs
 
         total_initial_vfa = sum(inf_dc.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
-        total_vfa_to_transfer = total_initial_vfa * self.target_ratio
+        if total_initial_vfa == 0:
+            eff_dc.copy_like(inf_dc)
+            eff_ac.copy_like(inf_ac)
+            return
 
-        # ✅ 멤브레인 면적 자동 계산
-        I = self.j * self.A_m  
-        J_T_dict = self.calculate_flux(I)  
-        total_flux = sum(J_T_dict.values())  
-        self.A_m = self.calculate_membrane_area(total_vfa_to_transfer, total_flux)
-        
-        # 이동량 추적
-        total_transferred_vfa = 0  # 실제 이동된 VFA 총량
-    
+        # 전류량 계산
+        I = self.j * self.A_m
+        J_T_dict = {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
+
         for ion in self.CE_dict:
-            available_amount = inf_dc.imol[ion]  # DC에서 사용할 수 있는 양
-            n_transferred = J_T_dict[ion] * self.A_m * self.t  # 해당 이온의 이동량
-    
-            # 목표를 초과하지 않도록 이동량 조정 (Lactic Acid 제외)
-            if ion != 'LacticAcid' and total_transferred_vfa < total_vfa_to_transfer:
-                # 이동량 조정 (목표량을 초과하지 않도록)
-                remaining_transfer_capacity = total_vfa_to_transfer - total_transferred_vfa
-                actual_transfer = min(n_transferred, available_amount, remaining_transfer_capacity)
-            else:
-                # Lactic Acid는 제한 없이 이동 가능
-                actual_transfer = min(n_transferred, available_amount)
-    
-            # eff_ac와 eff_dc 업데이트
-            eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer  # AC로 이동
-            eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer  # DC에서 감소
-    
-            # Lactic Acid 제외한 총 이동량 추적
-            if ion != 'LacticAcid':
-                total_transferred_vfa += actual_transfer
-    
-        # 물(H2O)은 이동하지 않으므로 그대로 유지
+            available_amount = inf_dc.imol[ion]
+            n_transferred = J_T_dict[ion] * self.A_m * self.t
+            actual_transfer = min(n_transferred, available_amount)
+
+            eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer
+            eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer
+            
         eff_dc.imol['Water'] = inf_dc.imol['Water']
         eff_ac.imol['Water'] = inf_ac.imol['Water']
-        
         
     _units = {
         'Membrane area': 'm^2',
