@@ -239,7 +239,7 @@ class ED(bst.Unit):
     _N_outs = 2  # eff_dc, eff_ac
 
     def __init__(self, ID='', ins=None, outs=(), thermo=None, CE_dict=None, j=5.058,
-                 A_m=1.0, R=0.0000222, z_T=1.0, t=24*3600, target_concentration=80000):
+                 A_m=1.0, R=0.0000222, z_T=1.0, t=24*3600, target_removal_ratio=0.8):
         super().__init__(ID, ins, outs, thermo=thermo)
         self.CE_dict = CE_dict or {
             'AceticAcid': 0.164472, 'PropionicAcid': 0.082236, 'ButyricAcid': 0.059,
@@ -250,21 +250,23 @@ class ED(bst.Unit):
         self.R = R  # 시스템 저항 (Ohm)
         self.z_T = z_T  # 이온 전하수
         self.t = t  # 작동 시간 (초)
-        self.target_concentration = target_concentration  # 목표 농도 (g/L)
+        self.target_removal_ratio = target_removal_ratio  # 목표 제거율 (예: 80%)
 
     def calculate_flux(self, I):
         """이온별 플럭스 계산 (mol/m²/s)"""
         return {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
 
     def calculate_membrane_area(self, total_vfa_mol, total_flux):
-        """목표 농도를 기준으로 Membrane Area 계산"""
+        """목표 제거율을 고려한 멤브레인 면적 계산"""
         if total_flux == 0:
-            return self.A_m  # 기존 값 유지
-
-        # 목표 농도에 맞춰야 하는 총 mol 수 계산
-        target_mol_transfer = (self.target_concentration / 60.05) / 1000  # mol/m³
+            print("⚠ Warning: Total flux is zero, returning default membrane area.")
+            return self.A_m  # 변화 없음
+        
+        # 목표 제거량 = 전체 VFA mol 수 × 제거율 (예: 80%)
+        target_mol_transfer = total_vfa_mol * self.target_removal_ratio # kmol/hr
+        
+        # 필요한 멤브레인 면적 계산 (m²)
         new_A_m = (target_mol_transfer * self.t / 3600) / (total_flux * self.t)
-
         return max(new_A_m, 1.0)  # 최소 1.0 m² 보장
 
     def _run(self):
@@ -285,14 +287,13 @@ class ED(bst.Unit):
         for ion in self.CE_dict:
             available_amount = inf_dc.imol[ion]
             n_transferred = J_T_dict[ion] * self.A_m * self.t # mol
-            actual_transfer = min(n_transferred, available_amount)
+            actual_transfer = min(n_transferred, available_amount * self.target_removal_ratio)
 
             eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer
             eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer
             
         eff_dc.imol['Water'] = inf_dc.imol['Water']
         eff_ac.imol['Water'] = inf_ac.imol['Water']
-
         
     _units = {
         'Membrane area': 'm^2',

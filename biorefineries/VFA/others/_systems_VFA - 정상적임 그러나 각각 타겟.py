@@ -97,7 +97,7 @@ def create_VFA_sys(ins, outs):
         j=11.375,
         t=24*3600,
         A_m=1.0,  # 초기 멤브레인 면적, 이후 업데이트됨
-        target_concentration=4000
+        target_removal_ratio=0.8
     )
     
     @S401.add_specification(run=True)
@@ -114,19 +114,23 @@ def create_VFA_sys(ins, outs):
         new_A_m = S401.calculate_membrane_area(total_vfa_mol, total_flux)
         S401.A_m = new_A_m
         print(f"🔹 Updated ED Membrane Area: {S401.A_m:.4f} m²")
+    
+        # 🔹 flux 기반으로 AC Tank tau 업데이트
+        update_ac_tau_based_on_flux(total_flux)
 
-        # 🔹 AC Tank 체류 시간 업데이트
-        update_ac_tau_based_on_target_concentration()
-
-    def update_ac_tau_based_on_target_concentration():
+    def update_ac_tau_based_on_flux(total_flux):
         """목표 농도를 반영한 AC Tank 체류시간 (tau) 조정"""
+        
         T302._design()  # AC Tank의 design_results 강제 업데이트
         
-        # 목표 농도 (g/L)
-        target_concentration = 80000
+        # **🔹 목표 농도 설정: MEE로 들어가는 AC 스트림의 목표 농도 = 4000 g/L**
+        target_concentration = 80000  # g/L
         
-        # ✅ 목표 농도 (mol/m³)
+        # ✅ 목표 농도 (mol/m³) - AC Tank에서 MEE로 가는 농도 4000 g/L
         C_target_ac = (target_concentration / 60.05) / 1000  # g/L → mol/m³ 변환
+    
+        # ED에서 총 이동한 mol 수 (mol/hr)
+        total_mol_transferred = total_flux * S401.A_m * S401.t  # mol
     
         # AC Tank 부피 (m³)
         V_ac = T302.design_results['Volume']
@@ -139,17 +143,16 @@ def create_VFA_sys(ins, outs):
     
         # ✅ 현재 AC Tank 출력 농도 (g/L)
         if total_solution_volume_ac > 1e-6:
-            current_concentration_ac = (total_vfa_mass_ac / total_solution_volume_ac)  # kg/m³ = g/L
+            current_concentration_ac = (total_vfa_mass_ac / total_solution_volume_ac)  # kg/m3=g/L
         else:
             print("⚠ Warning: AC Tank volume is too low, skipping tau adjustment.")
             return
     
         # ✅ 목표 농도와 비교하여 tau 조정
         if current_concentration_ac < target_concentration:  
-            T302.tau = (V_ac * C_target_ac) / (total_solution_volume_ac + 1e-6)
+            T302.tau = max((V_ac * C_target_ac) / (total_mol_transferred + 1e-6), 0.01)
         
         print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
-
 
     # --- 6. DC Output Handling (재순환 포함) ---
     S_DC = bst.Splitter(
