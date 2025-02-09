@@ -255,23 +255,26 @@ class ED(bst.Unit):
         J_T_dict = {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
         return J_T_dict
 
-    def calculate_membrane_area(self, total_moles_to_transfer, total_flux):
-        A_m = total_moles_to_transfer / (total_flux * self.t)
-        return A_m
-
+    def calculate_flux(self, I):
+        if self.A_m == 0:
+            raise ValueError("Error: Membrane area (A_m) cannot be zero.")
+        
+        J_T_dict = {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
+        return J_T_dict
+    
     def _run(self):
         inf_dc, inf_ac = self.ins
         eff_dc, eff_ac = self.outs
-
+    
         total_initial_vfa = sum(inf_dc.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
         total_vfa_to_transfer = total_initial_vfa * self.target_ratio
-
+    
         # ✅ 멤브레인 면적 자동 계산
-        I = self.j * self.A_m  
-        J_T_dict = self.calculate_flux(I)  
-        total_flux = sum(J_T_dict.values())  
+        I = self.j * max(self.A_m, 1e-6)  # A_m이 0이면 최소값 사용
+        J_T_dict = self.calculate_flux(I)  # 플럭스 계산
+        total_flux = sum(J_T_dict.values())  # 전체 플럭스
         self.A_m = self.calculate_membrane_area(total_vfa_to_transfer, total_flux)
-        
+
         # 이동량 추적
         total_transferred_vfa = 0  # 실제 이동된 VFA 총량
     
