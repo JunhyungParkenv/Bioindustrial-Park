@@ -252,6 +252,9 @@ class ED(bst.Unit):
         self.target_ratio = target_ratio
 
     def calculate_flux(self, I):
+        if self.A_m == 0:
+            raise ValueError("Error: Membrane area (A_m) cannot be zero.")
+        
         J_T_dict = {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
         return J_T_dict
 
