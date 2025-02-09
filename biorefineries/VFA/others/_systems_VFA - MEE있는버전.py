@@ -37,6 +37,7 @@ bst.main_flowsheet.set_flowsheet(F)
     outs=[
         dict(ID='stored_vfa', units='kg/hr'), 
         dict(ID='dc_output', units='kg/hr'),
+        dict(ID='evaporated_water', units='kg/hr'),
         dict(ID='biogas', units='kg/hr'),
         dict(ID='U302_cell_mass', units='kg/hr')
     ]
@@ -44,7 +45,7 @@ bst.main_flowsheet.set_flowsheet(F)
 def create_VFA_sys(ins, outs):
     """VFA Recovery System: Anaerobic digestion and Electrodialysis-based separation"""
     feedstock = ins[0]
-    stored_vfa, dc_output, biogas, U302_cell_mass = outs
+    stored_vfa, dc_output, evaporated_water, biogas, U302_cell_mass = outs
 
     # --- Feedstock Initialization ---
     feedstock.imass['Water'] = 154570.91
@@ -118,6 +119,7 @@ def create_VFA_sys(ins, outs):
         # 🔹 flux 기반으로 AC Tank tau 업데이트
         update_ac_tau_based_on_flux(total_flux)
 
+
     def update_ac_tau_based_on_flux(total_flux):
         """목표 농도를 반영한 AC Tank 체류시간 (tau) 조정"""
         
@@ -143,7 +145,7 @@ def create_VFA_sys(ins, outs):
     
         # ✅ 현재 AC Tank 출력 농도 (g/L)
         if total_solution_volume_ac > 1e-6:
-            current_concentration_ac = (total_vfa_mass_ac / total_solution_volume_ac)  # kg/m3=g/L
+            current_concentration_ac = (total_vfa_mass_ac / total_solution_volume_ac)  # g/L
         else:
             print("⚠ Warning: AC Tank volume is too low, skipping tau adjustment.")
             return
@@ -170,23 +172,23 @@ def create_VFA_sys(ins, outs):
         split=0.5  # 10% 재순환, 90% MEE로 이동
     )
 
-    # # --- 9. Multi-Effect Evaporator (MEE) ---
-    # E101 = bst.MultiEffectEvaporator(
-    #     'E101',
-    #     ins=S_AC-1,  # `ac_for_MEE`가 4000 g/L 농도를 만족해야 함
-    #     outs=('vfa_evaporated', evaporated_water),
-    #     V=0,
-    #     P=(101325, 73581, 50892, 32777, 20000)
-    # )
+    # --- 9. Multi-Effect Evaporator (MEE) ---
+    E101 = bst.MultiEffectEvaporator(
+        'E101',
+        ins=S_AC-1,  # `ac_for_MEE`가 4000 g/L 농도를 만족해야 함
+        outs=('vfa_evaporated', evaporated_water),
+        V=0,
+        P=(101325, 73581, 50892, 32777, 20000)
+    )
 
     # --- 5. Crystallization ---
     S201 = bst.BatchCrystallizer(
         'S201',
-        ins=S_AC-1,
+        ins=E101-0,
         outs='solid_vfa',
-        tau=6,  # Residence time
-        N=4,  # Number of crystallizers
-        T=273.15+0.25  # Temperature
+        tau=24,  # Residence time
+        N=6,  # Number of crystallizers
+        T=320.15  # Temperature
     )
 
     # --- 6. 추가적인 Drying (선택 가능) ---
@@ -204,7 +206,7 @@ def create_VFA_sys(ins, outs):
         'T101',
         ins=D301-0,  # Dryer output
         outs=stored_vfa,
-        tau=7*24  # 7-day storage time, similar to ethanol's in Humbird et al. 
+        tau=7*24  # Storage time
     )
 
     # Return all units for inspection (optional)

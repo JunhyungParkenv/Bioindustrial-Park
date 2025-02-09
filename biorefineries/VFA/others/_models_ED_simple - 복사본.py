@@ -14,54 +14,38 @@ from biosteam.evaluation import Model, Metric
 from biorefineries.VFA import _units  # 기존 ED 클래스 사용
 from biorefineries.VFA._systems_VFA import create_VFA_sys
 
-# #%% 📌 **1. `VFA_sys`를 생성하여 ED 유닛(S401) 가져오기**
-# VFA_sys = create_VFA_sys()  # ✅ `VFA_sys`를 실제 시스템 객체로 생성
-# VFA_sys.simulate()  # ✅ 시뮬레이션 실행하여 스트림 업데이트
-# VFA_sys.diagram('cluster', number=True)  # ✅ 흐름도 확인
+#%% 📌 **1. `VFA_sys`를 생성하여 ED 유닛(S401) 가져오기**
+VFA_sys = create_VFA_sys()  # ✅ `VFA_sys`를 실제 시스템 객체로 생성
+VFA_sys.simulate()  # ✅ 시뮬레이션 실행하여 스트림 업데이트
+VFA_sys.diagram('cluster', number=True)  # ✅ 흐름도 확인
 
-# # ✅ **ED 유닛(S401) 가져오기**
-# S401 = VFA_sys.flowsheet.unit.S401
-# inf_dc = S401.ins[0]  
-# inf_ac = S401.ins[1]  
-# eff_dc = S401.outs[0]  
-# eff_ac = S401.outs[1]  
+# ✅ **ED 유닛(S401) 가져오기**
+S401 = VFA_sys.flowsheet.unit.S401
+inf_dc = S401.ins[0]  
+inf_ac = S401.ins[1]  
+eff_dc = S401.outs[0]  
+eff_ac = S401.outs[1]  
 
-# S401._run()  # ✅ ED 유닛 실행하여 스트림 업데이트
+S401._run()  # ✅ ED 유닛 실행하여 스트림 업데이트
 
 #%% 📌 **2. Membrane Area vs. Current Density 관계 분석**
-# %% **📌 1. Membrane Area vs. Current Density 관계 분석**
-# 전류 밀도(j) 값 범위 설정
-j_values = np.linspace(5, 30, 10)  # 5 ~ 30 A/m² 범위에서 10개 샘플
-A_m_values = []
-
-# 결과 저장용 DataFrame
-df_results = pd.DataFrame(columns=['Current Density (A/m²)', 'Membrane Area (m²)'])
+j_values = np.linspace(5, 25, 10)  # 전류 밀도 범위 설정 (1~15 mA/cm²)
+results = []
 
 for j in j_values:
-    # 시스템 생성
-    VFA_sys = create_VFA_sys()
-    ED_unit = VFA_sys.flowsheet.unit.S401  # Electrodialysis 유닛 가져오기
-    
-    # 전류 밀도 업데이트
-    ED_unit.j = j
-    
-    # 시뮬레이션 실행
-    VFA_sys.simulate()
-    
-    # 업데이트된 멤브레인 면적 저장
-    A_m = ED_unit.A_m
-    A_m_values.append(A_m)
-    
-    # 결과 저장
-    df_results = df_results.append({'Current Density (A/m²)': j, 'Membrane Area (m²)': A_m}, ignore_index=True)
+    S401.j = j  
+    S401._run()  # ED 프로세스 실행
+    S401._design()  # ✅ 설계 값 업데이트
+    results.append((j, S401.A_m, S401.design_results['Total current'], S401.design_results['Power consumption']))
 
-# **📌 2. 그래프 출력**
-plt.figure(figsize=(8, 6))
-plt.scatter(j_values, A_m_values, color='b', label='Simulation Data')
-plt.plot(j_values, A_m_values, linestyle='-', color='r', alpha=0.7)  # 추세선 추가
-plt.xlabel("Current Density (j) [A/m²]")
-plt.ylabel("Membrane Area (A_m) [m²]")
-plt.title("Relationship between Current Density and Membrane Area")
+df = pd.DataFrame(results, columns=["Current Density (mA/cm²)", "Membrane Area (m²)", "Total Current (A)", "Power Consumption (W)"])
+
+# 📌 그래프 출력
+plt.figure(figsize=(8, 5))
+plt.plot(df["Current Density (mA/cm²)"], df["Membrane Area (m²)"], marker="o", linestyle="-", label="Membrane Area")
+plt.xlabel("Current Density (mA/cm²)")
+plt.ylabel("Membrane Area (m²)")
+plt.title("Membrane Area vs. Current Density in ED")
 plt.grid(True)
 plt.legend()
 plt.show()

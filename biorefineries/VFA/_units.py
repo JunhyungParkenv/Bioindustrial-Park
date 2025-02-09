@@ -286,7 +286,7 @@ class ED(bst.Unit):
 
         for ion in self.CE_dict:
             available_amount = inf_dc.imol[ion]
-            n_transferred = J_T_dict[ion] * self.A_m * self.t
+            n_transferred = J_T_dict[ion] * self.A_m * self.t # mol
             actual_transfer = min(n_transferred, available_amount * self.target_removal_ratio)
 
             eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer
