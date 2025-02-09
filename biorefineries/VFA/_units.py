@@ -267,6 +267,7 @@ class ED(bst.Unit):
         
         # 필요한 멤브레인 면적 계산 (m²)
         new_A_m = target_mol_transfer / (total_flux * self.t)
+        return new_A_m
 
     def _run(self):
         """ED 유닛 실행 (A_m은 시스템에서 조정)"""
