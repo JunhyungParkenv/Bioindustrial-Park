@@ -103,77 +103,45 @@ def create_VFA_sys(ins, outs):
         A_m=1.0,  # 초기 멤브레인 면적, 이후 업데이트됨
         target_concentration=target_concentration
     )
-    
+
     @S401.add_specification(run=True)
     def update_ed_parameters():
         """ED 유닛과 AC Tank 설정 업데이트"""
         eff_ac = S401.outs[1]
-        total_vfa_mass = eff_ac.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid'].sum()  # kg/hr
-        total_solution_volume = eff_ac.F_vol # m3/hr
+        total_vfa_mass = eff_ac.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid'].sum()  # VFA 질량 (kg)
+        total_solution_volume = eff_ac.F_vol  # 전체 용액 부피 (L)
     
+        # **🔹 방어 코드 추가 (물 부피가 0이면 오류 방지)**
         if total_solution_volume > 1e-6:
-            current_concentration = (total_vfa_mass / total_solution_volume)  # g/L 변환
+            current_concentration = (total_vfa_mass / total_solution_volume) * 1000  # g/L 변환
         else:
             print("⚠ Warning: AC solution volume is too low or zero. Skipping concentration adjustment.")
-            return
+            return  # 추가적인 계산을 수행하지 않고 함수 종료
     
+        # 목표 농도 미달 시 멤브레인 면적 조정
         if current_concentration < target_concentration and current_concentration > 0:
             I = S401.j * S401.A_m  # 총 전류
             flux_dict = S401.calculate_flux(I)
             total_flux = sum(flux_dict.values())  # 전체 플럭스 계산
-            total_moles_to_transfer = total_vfa_mass / 60.05  # kg → kmol 변환 (VFA 평균 분자량 60.05 g/mol, kmol/hr)
+            total_moles_to_transfer = total_vfa_mass / 60.05  # kg → kmol 변환 (VFA 평균 분자량 60.05 g/mol)
     
+            # **🔹 제한 없이 A_m 업데이트**
             new_A_m = S401.calculate_membrane_area(total_moles_to_transfer, total_flux)
-            S401.A_m = new_A_m
+            S401.A_m = new_A_m  # 제한 없이 업데이트
             print(f"🔹 Updated ED Membrane Area: {S401.A_m:.4f} m²")
     
-            # 🔹 flux 기반으로 AC Tank tau 업데이트
-            update_ac_tau_based_on_flux(total_flux)
-    
-    def update_ac_tau_based_on_flux(total_flux):
-        """Electrodialysis의 플럭스(flux)에 따라 AC Tank의 체류 시간(tau) 업데이트"""
-    
-        # AC Tank 디자인 결과 강제 업데이트
-        T302._design()
-    
-        # 변수 확인
-        volume_m3 = T302.design_results['Volume']  # m³
-        area_m2 = S401.A_m  # m²
-        time_s = S401.t  # 초 (s)
-    
-        # Debugging - 값 확인
-        print(f"🔎 volume_m3: {volume_m3:.4f} m³, area_m2: {area_m2:.4f} m², time_s: {time_s:.4f} s")
+        # AC Tank 체류시간 업데이트
+        # T302.tau = max(total_vfa_mass / (eff_ac.F_vol + 1e-6), 1.0)  # 최소 체류시간 1시간 보장
+        T302._design()  # AC Tank의 design_results 강제 업데이트
+        T302.tau = max(T302.design_results['Volume'] / (eff_ac.F_vol + 1e-6), 1.0)
+        print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
         
-        if total_flux < 1e-6:
-            print("⚠ Warning: Total flux is too low, setting tau to default value.")
-            T302.tau = 6.0  # 기본값 유지
-            return
-        
-        if volume_m3 < 1e-3 or area_m2 < 1e-3 or time_s < 1e-3:
-            print("⚠ Warning: Abnormal values detected in AC Tank or ED parameters, skipping tau update.")
-            return
-        
-        # 🔹 kmol을 m³로 변환하여 직접 계산 (1 kmol = 1 m³)
-        total_vfa_transfer_m3 = total_flux * area_m2 * time_s  # m³ 단위
-        
-        # Debugging - 값 확인
-        print(f"🔎 total_flux: {total_flux:.6f} kmol/m²·s, total_vfa_transfer_m3: {total_vfa_transfer_m3:.4f} m³")
-    
-        # tau 계산 (AC Tank 체류 시간)
-        T302.tau = max(volume_m3 / (total_vfa_transfer_m3 + 1e-6), 1.0)
-        
-        # Debugging - 업데이트 확인
-        print(f"✅ Updated AC Tank tau based on flux: {T302.tau:.4f} hr")
-        
-        # 강제로 디자인 업데이트 후 반영
-        T302._design()
-
     # --- 6. DC Output Handling (재순환 포함) ---
     S_DC = bst.Splitter(
         'S_DC',
         ins=S401-0,  # ED의 DC 출력
         outs=(recycle_dc, dc_output),
-        split=0.9 # 50% 재순환, 50% 배출
+        split=0.5 # 50% 재순환, 50% 배출
     )
     
     # --- 8. AC Output Handling (재순환 포함) ---
@@ -181,7 +149,7 @@ def create_VFA_sys(ins, outs):
         'S_AC',
         ins=S401-1,  # ED의 AC 출력
         outs=(recycle_ac, 'ac_for_MEE'),
-        split=0.9  # 10% 재순환, 90% MEE로 이동
+        split=0.5  # 10% 재순환, 90% MEE로 이동
     )
 
     # --- 9. Multi-Effect Evaporator (MEE) ---

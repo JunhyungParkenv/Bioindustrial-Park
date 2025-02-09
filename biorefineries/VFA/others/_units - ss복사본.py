@@ -254,7 +254,7 @@ class ED(bst.Unit):
         
     def calculate_flux(self, I):
         """이온별 플럭스 계산"""
-        return {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()} # mol/(m2*s)
+        return {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
 
     
     def calculate_membrane_area(self, total_moles_to_transfer, total_flux):
@@ -263,7 +263,7 @@ class ED(bst.Unit):
             print("⚠ Warning: Total flux is zero, returning default membrane area.")
             return self.A_m  # 변화 없음
         
-        new_A_m = (total_moles_to_transfer * 1000) / (total_flux * self.t) # m2
+        new_A_m = total_moles_to_transfer / (total_flux * self.t)
         
         return new_A_m  # 제한 없이 업데이트
 
