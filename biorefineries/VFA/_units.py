@@ -257,18 +257,24 @@ class ED(bst.Unit):
         return {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()} # mol/(m2*s)
 
     
-    def calculate_membrane_area(self, total_moles_to_transfer, total_flux):
+    def calculate_membrane_area(self, target_concentration, current_concentration, total_flux):
         """필요한 멤브레인 면적 계산"""
         if total_flux == 0:
             print("⚠ Warning: Total flux is zero, returning default membrane area.")
             return self.A_m  # 변화 없음
         
-        # 단위 변환 (total_moles_to_transfer: kmol/hr → mol/s)
-        total_moles_to_transfer_mol_s = (total_moles_to_transfer * 1000) / 3600
+        # `eff_ac` 정의 추가
+        eff_ac = self.outs[1]
         
-        new_A_m = total_moles_to_transfer_mol_s / total_flux  # m²
-        
-        return new_A_m  # 제한 없이 업데이트
+        # 목표 농도로 도달하기 위해 이동해야 할 총 mol 수 계산 (mol/hr)
+        total_mol_transfer_needed = (
+            ((target_concentration - current_concentration) / 60.05) * eff_ac.F_vol * 1000
+        )  # g/L → mol/m³ 변환 * m³/hr = mol/hr
+    
+        # 필요한 멤브레인 면적 계산 (m²)
+        new_A_m = (total_mol_transfer_needed / 3600) / total_flux  # mol/hr → mol/s 변환
+    
+        return max(new_A_m, 1.0)  # 최소 1.0 m²로 제한
 
 
     def _run(self):
