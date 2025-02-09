@@ -98,7 +98,7 @@ def create_VFA_sys(ins, outs):
         j=11.375,
         t=24*3600,
         A_m=1.0,  # 초기 멤브레인 면적, 이후 업데이트됨
-        target_removal_ratio=0.5
+        target_removal_ratio=0.8
     )
     
     @S401.add_specification(run=True)
