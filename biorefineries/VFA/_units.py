@@ -263,7 +263,10 @@ class ED(bst.Unit):
             print("⚠ Warning: Total flux is zero, returning default membrane area.")
             return self.A_m  # 변화 없음
         
-        new_A_m = (total_moles_to_transfer * 1000) / (total_flux * self.t) # m2
+        # 단위 변환 (total_moles_to_transfer: kmol/hr → mol/s)
+        total_moles_to_transfer_mol_s = (total_moles_to_transfer * 1000) / 3600
+        
+        new_A_m = total_moles_to_transfer_mol_s / total_flux  # m²
         
         return new_A_m  # 제한 없이 업데이트
 

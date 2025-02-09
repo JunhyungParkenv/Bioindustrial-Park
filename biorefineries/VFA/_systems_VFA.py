@@ -73,7 +73,7 @@ def create_VFA_sys(ins, outs):
     )
 
     # **🔹 목표 농도 설정: MEE로 들어가는 AC 스트림의 목표 농도 = 4000 g/L**
-    target_concentration = 6000  # g/L
+    target_concentration = 10000  # g/L
 
     # --- 5. Recycle Streams ---
     recycle_dc = bst.Stream('recycle_dc')
@@ -112,7 +112,7 @@ def create_VFA_sys(ins, outs):
         total_solution_volume = eff_ac.F_vol # m3/hr
     
         if total_solution_volume > 1e-6:
-            current_concentration = (total_vfa_mass / total_solution_volume)  # g/L 변환
+            current_concentration = (total_vfa_mass / total_solution_volume)  # kg/m3 = g/L
         else:
             print("⚠ Warning: AC solution volume is too low or zero. Skipping concentration adjustment.")
             return
@@ -120,7 +120,7 @@ def create_VFA_sys(ins, outs):
         if current_concentration < target_concentration and current_concentration > 0:
             I = S401.j * S401.A_m  # 총 전류
             flux_dict = S401.calculate_flux(I)
-            total_flux = sum(flux_dict.values())  # 전체 플럭스 계산
+            total_flux = sum(flux_dict.values())  # mol/(m2*s)
             total_moles_to_transfer = total_vfa_mass / 60.05  # kg → kmol 변환 (VFA 평균 분자량 60.05 g/mol, kmol/hr)
     
             new_A_m = S401.calculate_membrane_area(total_moles_to_transfer, total_flux)
@@ -131,49 +131,28 @@ def create_VFA_sys(ins, outs):
             update_ac_tau_based_on_flux(total_flux)
     
     def update_ac_tau_based_on_flux(total_flux):
-        """Electrodialysis의 플럭스(flux)에 따라 AC Tank의 체류 시간(tau) 업데이트"""
-    
-        # AC Tank 디자인 결과 강제 업데이트
-        T302._design()
-    
-        # 변수 확인
-        volume_m3 = T302.design_results['Volume']  # m³
-        area_m2 = S401.A_m  # m²
-        time_s = S401.t  # 초 (s)
-    
-        # Debugging - 값 확인
-        print(f"🔎 volume_m3: {volume_m3:.4f} m³, area_m2: {area_m2:.4f} m², time_s: {time_s:.4f} s")
+        """AC 탱크 체류시간을 플럭스(total_flux)에 맞게 조정"""
+        T302._design()  # AC Tank의 design_results 강제 업데이트
         
-        if total_flux < 1e-6:
-            print("⚠ Warning: Total flux is too low, setting tau to default value.")
-            T302.tau = 6.0  # 기본값 유지
-            return
+        # 목표 농도 (mol/m³) - Target Concentration 반영
+        C_target = (target_concentration / 60.05) / 1000  # g/L → mol/m³ 변환
         
-        if volume_m3 < 1e-3 or area_m2 < 1e-3 or time_s < 1e-3:
-            print("⚠ Warning: Abnormal values detected in AC Tank or ED parameters, skipping tau update.")
-            return
+        # ED에서 총 이동한 mol 수
+        total_mol_transferred = total_flux * S401.A_m * S401.t  # mol
         
-        # 🔹 kmol을 m³로 변환하여 직접 계산 (1 kmol = 1 m³)
-        total_vfa_transfer_m3 = total_flux * area_m2 * time_s  # m³ 단위
+        # AC Tank 체류 시간 계산 (hr)
+        T302.tau = max((T302.design_results['Volume'] * C_target) / (total_mol_transferred + 1e-6), 1.0)
+        print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
         
-        # Debugging - 값 확인
-        print(f"🔎 total_flux: {total_flux:.6f} kmol/m²·s, total_vfa_transfer_m3: {total_vfa_transfer_m3:.4f} m³")
-    
-        # tau 계산 (AC Tank 체류 시간)
-        T302.tau = max(volume_m3 / (total_vfa_transfer_m3 + 1e-6), 1.0)
-        
-        # Debugging - 업데이트 확인
-        print(f"✅ Updated AC Tank tau based on flux: {T302.tau:.4f} hr")
-        
-        # 강제로 디자인 업데이트 후 반영
-        T302._design()
+        # T302.tau = max(T302.design_results['Volume'] / (total_flux * S401.A_m * S401.t), 1.0)
+        # print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
 
     # --- 6. DC Output Handling (재순환 포함) ---
     S_DC = bst.Splitter(
         'S_DC',
         ins=S401-0,  # ED의 DC 출력
         outs=(recycle_dc, dc_output),
-        split=0.9 # 50% 재순환, 50% 배출
+        split=0.5 # 50% 재순환, 50% 배출
     )
     
     # --- 8. AC Output Handling (재순환 포함) ---
@@ -181,7 +160,7 @@ def create_VFA_sys(ins, outs):
         'S_AC',
         ins=S401-1,  # ED의 AC 출력
         outs=(recycle_ac, 'ac_for_MEE'),
-        split=0.9  # 10% 재순환, 90% MEE로 이동
+        split=0.5  # 10% 재순환, 90% MEE로 이동
     )
 
     # --- 9. Multi-Effect Evaporator (MEE) ---
