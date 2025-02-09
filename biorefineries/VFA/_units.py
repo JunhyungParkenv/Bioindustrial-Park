@@ -295,10 +295,6 @@ class ED(bst.Unit):
             # Lactic Acid 제외한 총 이동량 추적
             if ion != 'LacticAcid':
                 total_transferred_vfa += actual_transfer
-    
-        # 물(H2O)은 이동하지 않으므로 그대로 유지
-        eff_dc.imol['Water'] = inf_dc.imol['Water']
-        eff_ac.imol['Water'] = inf_ac.imol['Water']
         
         
     _units = {

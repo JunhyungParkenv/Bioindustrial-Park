@@ -96,18 +96,8 @@ def create_VFA_sys(ins, outs):
     # --- 7. Electrodialysis (ED) ---
     S401 = _units.ED(
         'S401',
-        ins=(T301-0, T302-0),
-        outs=('treated_dc', 'treated_ac'),
-        j=11.375,
-        t=24*3600,
-        A_m=1.0,  # 초기 멤브레인 면적, 이후 업데이트됨
-        target_concentration=target_concentration
-    )
-    # --- 7. Electrodialysis (ED) ---
-    S401 = _units.ED(
-        'S401',
         ins=(T301-0, T302-0),  # inf_dc, inf_ac
-        outs=(dc_output, 'ac_output'),  # Outputs for DC and AC
+        outs=('treated_dc', 'treated_ac'),  # Outputs for DC and AC
         j=11.375,  # Current density
         t=24*3600,  # Time in seconds
         target_ratio=0.8
