@@ -265,7 +265,7 @@ class ED(bst.Unit):
         target_mol_transfer = (self.target_concentration / 60.05) / 1000  # mol/m³
         new_A_m = (target_mol_transfer * self.t / 3600) / (total_flux * self.t)
 
-        return max(new_A_m, 1.0)  # 최소 1.0 m² 보장
+        return max(new_A_m, 0.5)  # 최소 1.0 m² 보장
 
     def _run(self):
         """ED 유닛 실행 (A_m은 시스템에서 조정)"""
