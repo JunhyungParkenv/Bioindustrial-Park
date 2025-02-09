@@ -263,11 +263,11 @@ class ED(bst.Unit):
             return self.A_m  # 변화 없음
         
         # 목표 제거량 = 전체 VFA mol 수 × 제거율 (예: 80%)
-        target_mol_transfer = total_vfa_mol * self.target_removal_ratio * (1e3 / 3600) * self.t  # kmol/hr → mol 변환
+        target_mol_transfer = total_vfa_mol * self.target_removal_ratio
         
         # 필요한 멤브레인 면적 계산 (m²)
         new_A_m = target_mol_transfer / (total_flux * self.t)
-        return max(new_A_m, 0.5)  # 최소 0.5 m² 보장
+        return max(new_A_m, 1.0)  # 최소 1.0 m² 보장
 
     def _run(self):
         """ED 유닛 실행 (A_m은 시스템에서 조정)"""
