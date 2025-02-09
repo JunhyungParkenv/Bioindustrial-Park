@@ -41,6 +41,7 @@ bst.main_flowsheet.set_flowsheet(F)
         dict(ID='U302_cell_mass', units='kg/hr')
     ]
 )
+
 def create_VFA_sys(ins, outs):
     """VFA Recovery System: Anaerobic digestion and Electrodialysis-based separation"""
     feedstock = ins[0]
@@ -111,7 +112,11 @@ def create_VFA_sys(ins, outs):
         flux_dict = S401.calculate_flux(I)
         total_flux = sum(flux_dict.values())  # mol/(m2*s)
     
-        new_A_m = S401.calculate_membrane_area(total_vfa_mol, total_flux)
+        # ✅ AC Tank로 가는 유량을 Q로 설정
+        Q = eff_ac.F_vol  # m³/hr
+        
+        # ✅ 업데이트된 멤브레인 면적 계산 (Q 반영)
+        new_A_m = S401.calculate_membrane_area(total_vfa_mol, total_flux, Q)
         S401.A_m = new_A_m
         print(f"🔹 Updated ED Membrane Area: {S401.A_m:.4f} m²")
 

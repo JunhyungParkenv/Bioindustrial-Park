@@ -256,13 +256,13 @@ class ED(bst.Unit):
         """이온별 플럭스 계산 (mol/m²/s)"""
         return {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
 
-    def calculate_membrane_area(self, total_vfa_mol, total_flux):
+    def calculate_membrane_area(self, total_vfa_mol, total_flux, Q):
         """목표 농도를 기준으로 Membrane Area 계산"""
         if total_flux == 0:
             return self.A_m  # 기존 값 유지
 
         # 목표 농도에 맞춰야 하는 총 mol 수 계산
-        target_mol_transfer = (self.target_concentration / 60.05) / 1000  # mol/m³
+        target_mol_transfer = ((self.target_concentration / 60.05) / 1000) * Q # mol/hr
         new_A_m = (target_mol_transfer * self.t / 3600) / (total_flux * self.t)
 
         return max(new_A_m, 0.5)  # 최소 1.0 m² 보장
