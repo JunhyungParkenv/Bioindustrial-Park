@@ -72,9 +72,6 @@ def create_VFA_sys(ins, outs):
         split=0.8  # 80% inf_dc, 20% inf_ac
     )
 
-    # **🔹 목표 농도 설정: MEE로 들어가는 AC 스트림의 목표 농도 = 4000 g/L**
-    target_concentration = 5000  # g/L
-
     # --- 5. Recycle Streams ---
     recycle_dc = bst.Stream('recycle_dc')
     recycle_ac = bst.Stream('recycle_ac')
@@ -101,7 +98,7 @@ def create_VFA_sys(ins, outs):
         j=11.375,
         t=24*3600,
         A_m=1.0,  # 초기 멤브레인 면적, 이후 업데이트됨
-        target_concentration=target_concentration
+        target_removal_ratio=0.5
     )
     
     @S401.add_specification(run=True)
@@ -121,14 +118,18 @@ def create_VFA_sys(ins, outs):
     
         # 🔹 flux 기반으로 AC Tank tau 업데이트
         update_ac_tau_based_on_flux(total_flux)
-    
+
+
     def update_ac_tau_based_on_flux(total_flux):
         """목표 농도를 반영한 AC Tank 체류시간 (tau) 조정"""
         
         T302._design()  # AC Tank의 design_results 강제 업데이트
-    
-        # 목표 농도 (mol/m³) - Target Concentration 반영
-        C_target = (4000 / 60.05) / 1000  # g/L → mol/m³ 변환
+        
+        # **🔹 목표 농도 설정: MEE로 들어가는 AC 스트림의 목표 농도 = 4000 g/L**
+        target_concentration = 8000  # g/L
+        
+        # ✅ 목표 농도 (mol/m³) - AC Tank에서 MEE로 가는 농도 4000 g/L
+        C_target_ac = (target_concentration / 60.05) / 1000  # g/L → mol/m³ 변환
     
         # ED에서 총 이동한 mol 수 (mol/hr)
         total_mol_transferred = total_flux * S401.A_m * S401.t  # mol
@@ -136,14 +137,24 @@ def create_VFA_sys(ins, outs):
         # AC Tank 부피 (m³)
         V_ac = T302.design_results['Volume']
     
-        # 체류시간 계산 (hr) -> 목표 농도에 도달할 시간을 고려
-        if total_mol_transferred > 0:
-            T302.tau = max((V_ac * C_target) / (total_mol_transferred + 1e-6), 1.0)
-        else:
-            T302.tau = 1.0
+        # 🔹 AC Tank의 현재 총 VFA 질량 (kg/hr)
+        total_vfa_mass_ac = T302.outs[0].imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid'].sum()
     
+        # 🔹 AC Tank의 현재 용적 유량 (m³/hr)
+        total_solution_volume_ac = T302.outs[0].F_vol  # m³/hr
+    
+        # ✅ 현재 AC Tank 출력 농도 (g/L)
+        if total_solution_volume_ac > 1e-6:
+            current_concentration_ac = (total_vfa_mass_ac / total_solution_volume_ac) * 1000  # g/L
+        else:
+            print("⚠ Warning: AC Tank volume is too low, skipping tau adjustment.")
+            return
+    
+        # ✅ 목표 농도 (4000 g/L)와 비교하여 tau 조정
+        if current_concentration_ac < 4000:
+            T302.tau = max((V_ac * C_target_ac) / (total_mol_transferred + 1e-6), 1.0)
+        
         print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
-
 
     # --- 6. DC Output Handling (재순환 포함) ---
     S_DC = bst.Splitter(
