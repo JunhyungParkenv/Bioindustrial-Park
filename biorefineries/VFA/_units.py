@@ -278,12 +278,19 @@ class ED(bst.Unit):
             eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer
             eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer
 
+        
+    _units = {
+        'Membrane area': 'm^2',
+        'System resistance': 'Ohm',
+        'System voltage': 'V',
+        'Power consumption': 'W',
+        'Total current': 'A',
+    }
+
     def _design(self):
-        """Tau를 반영한 ED 유닛 디자인 계산"""
         D = self.design_results
-        self.tau = self.system.flowsheet.unit['ac_tank'].tau  # Tau 최신값 반영
         D['Membrane area'] = self.A_m
-        D['Total current'] = self.j * self.A_m * (self.tau / 6)  # Tau를 반영하여 전류량 보정
+        D['Total current'] = self.j * self.A_m
         D['System resistance'] = self.R
         D['System voltage'] = D['Total current'] * self.R
         D['Power consumption'] = D['System voltage'] * D['Total current']
