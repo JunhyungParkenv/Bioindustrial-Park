@@ -256,16 +256,29 @@ class ED(bst.Unit):
         """이온별 플럭스 계산 (mol/m²/s)"""
         return {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
 
+    # def calculate_membrane_area(self, total_vfa_mol, total_flux, Q):
+    #     """목표 농도를 기준으로 Membrane Area 계산"""
+    #     if total_flux == 0:
+    #         return self.A_m  # 기존 값 유지
+
+    #     # 목표 농도에 맞춰야 하는 총 mol 수 계산
+    #     target_mol_transfer = ((self.target_concentration / 60.05) / 1000) * Q # mol/hr
+    #     new_A_m = (target_mol_transfer * self.t / 3600) / (total_flux * self.t) # m2
+
+    #     return max(new_A_m, 0.5)  # 최소 1.0 m² 보장
     def calculate_membrane_area(self, total_vfa_mol, total_flux, Q):
-        """목표 농도를 기준으로 Membrane Area 계산"""
+        """목표 농도를 반영하여 Membrane Area (A_m) 조정"""
         if total_flux == 0:
             return self.A_m  # 기존 값 유지
+    
+        # ✅ 목표 농도에 맞춰야 하는 총 mol 수 계산 (mol/hr)
+        target_mol_transfer = (self.target_concentration / 60.05) * 1000 * Q  # mol/hr
+    
+        # ✅ 목표 mol을 달성하기 위해 필요한 Membrane Area 계산
+        new_A_m = target_mol_transfer / (total_flux * 3600)  # m²
+    
+        return max(new_A_m, 0.5)  # 최소 0.5 m² 보장
 
-        # 목표 농도에 맞춰야 하는 총 mol 수 계산
-        target_mol_transfer = ((self.target_concentration / 60.05) / 1000) * Q # mol/hr
-        new_A_m = (target_mol_transfer * self.t / 3600) / (total_flux * self.t) # m2
-
-        return max(new_A_m, 0.5)  # 최소 1.0 m² 보장
 
     def _run(self):
         """ED 유닛 실행 (A_m은 시스템에서 조정)"""
@@ -283,12 +296,12 @@ class ED(bst.Unit):
         J_T_dict = self.calculate_flux(I) # mol/m²/s
 
         for ion in self.CE_dict:
-            available_amount = inf_dc.imol[ion] # kmol/hr
-            n_transferred = J_T_dict[ion] * self.A_m * self.t # mol
-            actual_transfer = min(n_transferred, available_amount)
             # available_amount = inf_dc.imol[ion] # kmol/hr
-            # n_transferred = J_T_dict[ion] / 1000 * self.A_m * 3600 # kmol/hr
+            # n_transferred = J_T_dict[ion] * self.A_m * self.t # mol
             # actual_transfer = min(n_transferred, available_amount)
+            available_amount = inf_dc.imol[ion] # kmol/hr
+            n_transferred = J_T_dict[ion] / 1000 * self.A_m * 3600 # kmol/hr
+            actual_transfer = min(n_transferred, available_amount)
 
             eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer
             eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer
