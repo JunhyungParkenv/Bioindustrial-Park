@@ -127,7 +127,8 @@ def create_VFA_sys(ins, outs):
         update_ac_tau_based_on_target_concentration()
 
     def update_ac_tau_based_on_target_concentration():
-        """목표 농도를 반영한 AC Tank 체류시간 (tau) 조정"""
+        """목표 농도를 반영한 AC Tank 체류시간 (tau) 조정 및 Flux 기반 A_m 조정"""
+        
         T302._design()  # AC Tank의 design_results 강제 업데이트
         
         # ✅ 목표 농도 (mol/m³)
@@ -152,30 +153,35 @@ def create_VFA_sys(ins, outs):
         # ✅ 목표 농도와 비교하여 tau 조정
         if current_concentration_ac < target_concentration:  
             T302.tau = (V_ac * C_target_ac) / (total_solution_volume_ac + 1e-6)
-        
+            
         print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
+        
         # ✅ Flux 기반 Membrane Area 조정
         update_ed_flux_based_on_tau()
-        
+    
+    
     def update_ed_flux_based_on_tau():
         """Tau 변화에 따라 Flux와 Membrane Area 조정"""
         eff_ac = S401.outs[1]  # ED에서 나온 AC 출력 스트림
         total_vfa_mass = eff_ac.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid'].sum()  # kg/hr
         total_vfa_mol = total_vfa_mass / 60.05  # kmol/hr (평균 분자량 60.05 g/mol)
     
-        I = S401.j * S401.A_m  # 총 전류량 계산
-        flux_dict = S401.calculate_flux(I)  # 개별 이온 플럭스 (mol/m²/s)
-        total_flux = sum(flux_dict.values())  # 총 플럭스 (mol/m²/s)
-    
         # ✅ AC Tank 체류시간(Tau) 기반으로 Flux 조정
-        new_flux = total_flux * (6 / T302.tau)  # 기존 6시간을 기준으로 Tau에 따라 조정
-    
-        # ✅ 새로운 Membrane Area 계산
         Q = eff_ac.F_vol  # m³/hr
+    
+        if Q > 1e-6:
+            new_flux = total_vfa_mol / (S401.A_m * Q)  # mol/m²/s (Flux 정의)
+        else:
+            new_flux = 0
+    
+        # ✅ 새로운 Membrane Area 계산 (Flux 기반)
         new_A_m = S401.calculate_membrane_area(total_vfa_mol, new_flux, Q)
-        S401.A_m = new_A_m
+    
+        # ✅ 급격한 변화 방지 (보정)
+        S401.A_m = max(0.5, min(new_A_m, S401.A_m * 1.2))  # 기존 값 대비 20% 내외 변동 허용
     
         print(f"🔹 Updated ED Membrane Area (Flux-based): {S401.A_m:.4f} m²")
+
 
 
     # --- 6. DC Output Handling (재순환 포함) ---
