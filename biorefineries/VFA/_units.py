@@ -293,8 +293,8 @@ class ED(bst.Unit):
             eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer
             eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer
             
-        eff_dc.imol['Water'] = inf_dc.imol['Water']
-        eff_ac.imol['Water'] = inf_ac.imol['Water']
+        # eff_dc.imol['Water'] = inf_dc.imol['Water']
+        # eff_ac.imol['Water'] = inf_ac.imol['Water']
 
         
     _units = {
