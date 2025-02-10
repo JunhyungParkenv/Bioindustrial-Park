@@ -263,7 +263,7 @@ class ED(bst.Unit):
 
         # 목표 농도에 맞춰야 하는 총 mol 수 계산
         target_mol_transfer = ((self.target_concentration / 60.05) / 1000) * Q # mol/hr
-        new_A_m = (target_mol_transfer * self.t / 3600) / (total_flux * self.t)
+        new_A_m = (target_mol_transfer * self.t / 3600) / (total_flux * self.t) # m2
 
         return max(new_A_m, 0.5)  # 최소 1.0 m² 보장
 
@@ -280,12 +280,15 @@ class ED(bst.Unit):
 
         # 전류량 계산
         I = self.j * self.A_m
-        J_T_dict = self.calculate_flux(I)
+        J_T_dict = self.calculate_flux(I) # mol/m²/s
 
         for ion in self.CE_dict:
-            available_amount = inf_dc.imol[ion]
-            n_transferred = J_T_dict[ion] * self.A_m * self.t # mol
-            actual_transfer = min(n_transferred, available_amount)
+            available_amount = inf_dc.imol[ion] # kmol/hr
+            # n_transferred = J_T_dict[ion] * self.A_m * self.t # mol
+            # actual_transfer = min(n_transferred, available_amount)
+            n_transferred_kmol_hr = (J_T_dict[ion] * self.A_m * self.t) / (3600 * 1000)  # kmol/hr
+            actual_transfer = min(n_transferred_kmol_hr, available_amount)  # 둘 다 kmol/hr 단위
+
 
             eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer
             eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer

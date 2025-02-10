@@ -26,6 +26,9 @@ load_preferences_and_process_settings()  # Flow 단위를 'kg/hr'로 설정
 # Thermodynamic properties
 tmo.settings.set_thermo(chems)
 
+# ✅ **🔹 Global Variable for Target Concentration**
+target_concentration = 70000  # g/L
+
 # Flowsheet Initialization
 F = bst.Flowsheet('VFA_Recovery')
 bst.main_flowsheet.set_flowsheet(F)
@@ -98,7 +101,7 @@ def create_VFA_sys(ins, outs):
         j=11.375,
         t=24*3600,
         A_m=1.0,  # 초기 멤브레인 면적, 이후 업데이트됨
-        target_concentration=8000
+        target_concentration=target_concentration
     )
     
     @S401.add_specification(run=True)
@@ -127,11 +130,8 @@ def create_VFA_sys(ins, outs):
         """목표 농도를 반영한 AC Tank 체류시간 (tau) 조정"""
         T302._design()  # AC Tank의 design_results 강제 업데이트
         
-        # 목표 농도 (g/L)
-        target_concentration = 80000
-        
         # ✅ 목표 농도 (mol/m³)
-        C_target_ac = (target_concentration / 60.05) / 1000  # g/L → mol/m³ 변환
+        C_target_ac = (target_concentration * 10 / 60.05) / 1000  # g/L → mol/m³ 변환
     
         # AC Tank 부피 (m³)
         V_ac = T302.design_results['Volume']
@@ -154,7 +154,33 @@ def create_VFA_sys(ins, outs):
             T302.tau = (V_ac * C_target_ac) / (total_solution_volume_ac + 1e-6)
         
         print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
-
+    # def update_ac_tau_based_on_target_concentration():
+    #     """목표 농도를 반영한 AC Tank 체류시간 (tau) 조정"""
+    #     T302._design()  # AC Tank의 design_results 강제 업데이트
+    
+    #     # ✅ 목표 농도 (kg/L)
+    #     C_target_ac = target_concentration # g/L → kg/m3 변환
+    
+    #     # AC Tank 부피 (m³)
+    #     V_ac = T302.design_results['Volume']
+        
+    #     # 🔹 AC Tank의 현재 총 VFA 질량 (kg/hr)
+    #     total_vfa_mass_ac = T302.outs[0].imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid'].sum()
+        
+    #     # 🔹 AC Tank의 현재 용적 유량 (m³/hr)
+    #     total_solution_volume_ac = T302.outs[0].F_vol  # m³/hr
+        
+    #     # ✅ 현재 AC Tank 출력 농도 (g/L)
+    #     if total_solution_volume_ac > 1e-6:
+    #         current_concentration_ac = (total_vfa_mass_ac / total_solution_volume_ac)  # kg/m³ = g/L
+    #     else:
+    #         print("⚠ Warning: AC Tank volume is too low, skipping tau adjustment.")
+    #         return
+        
+    #     # ✅ 목표 농도와 비교하여 tau 조정
+    #     if current_concentration_ac < target_concentration:  
+    #         T302.tau = (V_ac * C_target_ac) / (total_vfa_mass_ac + 1e-6)
+        
 
     # --- 6. DC Output Handling (재순환 포함) ---
     S_DC = bst.Splitter(
