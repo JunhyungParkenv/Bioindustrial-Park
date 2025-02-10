@@ -104,6 +104,7 @@ def create_VFA_sys(ins, outs):
         target_concentration=target_concentration
     )
     
+    # 🔹 업데이트 함수 추가 (여기서 추가!)
     @S401.add_specification(run=True)
     def update_ed_parameters():
         """ED 유닛과 AC Tank 설정 업데이트"""
