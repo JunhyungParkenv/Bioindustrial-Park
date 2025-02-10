@@ -27,7 +27,7 @@ load_preferences_and_process_settings()  # Flow 단위를 'kg/hr'로 설정
 tmo.settings.set_thermo(chems)
 
 # ✅ **🔹 Global Variable for Target Concentration**
-target_concentration = 8000  # g/L
+target_concentration = 5000  # g/L
 
 # Flowsheet Initialization
 F = bst.Flowsheet('VFA_Recovery')
@@ -111,9 +111,6 @@ def create_VFA_sys(ins, outs):
         total_vfa_mass = eff_ac.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid'].sum()  # kg/hr
         total_vfa_mol = total_vfa_mass / 60.05  # kmol/hr (평균 분자량 60.05 g/mol)
         
-        # 🔹 AC Tank 체류 시간 업데이트 (체류 시간이 ED의 농도에 영향)
-        update_ac_tau_based_on_target_concentration()
-        
         I = S401.j * S401.A_m  # 총 전류
         flux_dict = S401.calculate_flux(I)
         total_flux = sum(flux_dict.values())  # mol/(m2*s)
@@ -125,9 +122,9 @@ def create_VFA_sys(ins, outs):
         new_A_m = S401.calculate_membrane_area(total_vfa_mol, total_flux, Q)
         S401.A_m = new_A_m
         print(f"🔹 Updated ED Membrane Area: {S401.A_m:.4f} m²")
-        # ✅ 전류 밀도(j)도 업데이트 (체류 시간과 농도 변화 반영)
-        S401.j = I / new_A_m
 
+        # 🔹 AC Tank 체류 시간 업데이트
+        update_ac_tau_based_on_target_concentration()
 
     def update_ac_tau_based_on_target_concentration():
         """목표 농도를 반영한 AC Tank 체류시간 (tau) 조정"""
