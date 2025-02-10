@@ -110,25 +110,23 @@ def create_VFA_sys(ins, outs):
         eff_ac = S401.outs[1]
         total_vfa_mass = eff_ac.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid'].sum()  # kg/hr
         total_vfa_mol = total_vfa_mass / 60.05  # kmol/hr (평균 분자량 60.05 g/mol)
-        
+    
+        # ✅ 1️⃣ 주어진 j 값을 유지하면서 A_m을 계산
         I = S401.j * S401.A_m  # 총 전류
         flux_dict = S401.calculate_flux(I)
-        total_flux = sum(flux_dict.values())  # mol/(m2*s)
+        total_flux = sum(flux_dict.values())  # mol/(m²*s)
     
-        # ✅ AC Tank로 가는 유량을 Q로 설정
+        # ✅ 2️⃣ A_m 업데이트 (Q 반영)
         Q = eff_ac.F_vol  # m³/hr
-        
-        # ✅ 업데이트된 멤브레인 면적 계산 (Q 반영)
         new_A_m = S401.calculate_membrane_area(total_vfa_mol, total_flux, Q)
         S401.A_m = new_A_m
-        print(f"🔹 Updated ED Membrane Area: {S401.A_m:.4f} m²")
-
-        # 🔹 AC Tank 체류 시간 업데이트
-        update_ac_tau_based_on_target_concentration()
-
-    def update_ac_tau_based_on_target_concentration():
-        """목표 농도를 반영한 AC Tank 체류시간 (tau) 조정 및 Flux 기반 A_m 조정"""
-        
+        print(f"🔹 Updated ED Membrane Area (A_m): {S401.A_m:.4f} m²")
+    
+        # ✅ 3️⃣ A_m이 업데이트된 후 tau 업데이트
+        update_ac_tau_based_on_A_m()
+    
+    def update_ac_tau_based_on_A_m():
+        """A_m을 반영하여 AC Tank의 체류시간 (tau) 조정"""
         T302._design()  # AC Tank의 design_results 강제 업데이트
         
         # ✅ 목표 농도 (mol/m³)
@@ -153,35 +151,8 @@ def create_VFA_sys(ins, outs):
         # ✅ 목표 농도와 비교하여 tau 조정
         if current_concentration_ac < target_concentration:  
             T302.tau = (V_ac * C_target_ac) / (total_solution_volume_ac + 1e-6)
-            
-        print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
         
-        # ✅ Flux 기반 Membrane Area 조정
-        update_ed_flux_based_on_tau()
-    
-    
-    def update_ed_flux_based_on_tau():
-        """Tau 변화에 따라 Flux와 Membrane Area 조정"""
-        eff_ac = S401.outs[1]  # ED에서 나온 AC 출력 스트림
-        total_vfa_mass = eff_ac.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid'].sum()  # kg/hr
-        total_vfa_mol = total_vfa_mass / 60.05  # kmol/hr (평균 분자량 60.05 g/mol)
-    
-        # ✅ AC Tank 체류시간(Tau) 기반으로 Flux 조정
-        Q = eff_ac.F_vol  # m³/hr
-    
-        if Q > 1e-6:
-            new_flux = total_vfa_mol / (S401.A_m * Q)  # mol/m²/s (Flux 정의)
-        else:
-            new_flux = 0
-    
-        # ✅ 새로운 Membrane Area 계산 (Flux 기반)
-        new_A_m = S401.calculate_membrane_area(total_vfa_mol, new_flux, Q)
-    
-        # ✅ 급격한 변화 방지 (보정)
-        S401.A_m = max(0.5, min(new_A_m, S401.A_m * 1.2))  # 기존 값 대비 20% 내외 변동 허용
-    
-        print(f"🔹 Updated ED Membrane Area (Flux-based): {S401.A_m:.4f} m²")
-
+        print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
 
 
     # --- 6. DC Output Handling (재순환 포함) ---
