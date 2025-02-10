@@ -239,39 +239,26 @@ class ED(bst.Unit):
     _N_outs = 2  # eff_dc, eff_ac
 
     def __init__(self, ID='', ins=None, outs=(), thermo=None, CE_dict=None, j=5.058,
-                 A_m=1.0, R=0.0000222, z_T=1.0, t=24*3600, target_concentration=80000, tau=6):
+                 A_m=1.0, R=0.0000222, z_T=1.0, t=24*3600, target_concentration=80000):
         super().__init__(ID, ins, outs, thermo=thermo)
         self.CE_dict = CE_dict or {
             'AceticAcid': 0.164472, 'PropionicAcid': 0.082236, 'ButyricAcid': 0.059,
             'ValericAcid': 0.063118, 'LacticAcid': 0.082236, 'Water': 0.0
         }
         self.j = j  # 전류 밀도 (A/m²)
-        self.A_m = A_m  # 멤브레인 면적 (m²), 시스템 모듈에서 조정
+        self.A_m = A_m  # 멤브레인 면적 (m²)
         self.R = R  # 시스템 저항 (Ohm)
         self.z_T = z_T  # 이온 전하수
         self.t = t  # 작동 시간 (초)
         self.target_concentration = target_concentration  # 목표 농도 (g/L)
-        self.tau = tau  # 체류 시간 (hr)
-
-    def calculate_flux(self, I):
-        """이온별 플럭스 계산 (mol/m²/s)"""
-        return {ion: (CE * I) / (self.z_T * F * self.A_m) for ion, CE in self.CE_dict.items()}
-
-    def calculate_membrane_area(self, total_vfa_mol, total_flux, Q):
-        """목표 농도를 기준으로 Membrane Area 계산"""
-        if total_flux == 0:
-            return self.A_m  # 기존 값 유지
-
-        # Tau를 고려하여 새로운 Membrane Area 계산
-        target_mol_transfer = ((self.target_concentration / 60.05) / 1000) * Q * self.tau  # mol/hr * hr
-        new_A_m = (target_mol_transfer * self.t / 3600) / (total_flux * self.t)  # m²
-
-        return max(new_A_m, 0.5)  # 최소 0.5 m² 보장
 
     def _run(self):
-        """ED 유닛 실행 (Tau가 반영되도록 조정)"""
+        """ED 유닛 실행 (Tau가 시스템에서 가져오도록 변경)"""
         inf_dc, inf_ac = self.ins
         eff_dc, eff_ac = self.outs
+
+        # 🔹 Tau 값을 시스템 모듈에서 가져오기 (ac_tank 값 사용)
+        self.tau = self.system.flowsheet.unit['ac_tank'].tau
 
         total_initial_vfa = sum(inf_dc.imol[ion] for ion in self.CE_dict if ion != 'LacticAcid')
         if total_initial_vfa == 0:
@@ -291,17 +278,10 @@ class ED(bst.Unit):
             eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer
             eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer
 
-    _units = {
-        'Membrane area': 'm²',
-        'System resistance': 'Ohm',
-        'System voltage': 'V',
-        'Power consumption': 'W',
-        'Total current': 'A',
-    }
-
     def _design(self):
         """Tau를 반영한 ED 유닛 디자인 계산"""
         D = self.design_results
+        self.tau = self.system.flowsheet.unit['ac_tank'].tau  # Tau 최신값 반영
         D['Membrane area'] = self.A_m
         D['Total current'] = self.j * self.A_m * (self.tau / 6)  # Tau를 반영하여 전류량 보정
         D['System resistance'] = self.R
