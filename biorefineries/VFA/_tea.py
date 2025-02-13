@@ -25,12 +25,10 @@ class VFA_TEA(CellulosicEthanolTEA):
     @property
     def ED_CAPEX_breakdown(self):
         """
-        ED 유닛(S401)의 cost_breakdown 딕셔너리를 반환합니다.
-        예를 들어, {'CEM': 12345.67, 'NF': 6789.01, ...}와 같이 각 구성 요소별
-        설치 비용이 표시됩니다.
+        Returns the cost breakdown of the ED unit (assumed to be in bst.main_flowsheet.unit['S401']).
+        Example output: {'Membrane cost': 12345.67, 'NF cost': 6789.01, ...}
         """
         try:
-            # 시스템 내 ED 유닛은 보통 F.unit['S401']에 위치한다고 가정합니다.
             ed_unit = bst.main_flowsheet.unit['S401']
             return ed_unit.cost_breakdown
         except Exception as e:
@@ -108,17 +106,3 @@ class VFA_TEA(CellulosicEthanolTEA):
 def create_vfa_tea(system, OSBL_units=None):
     """ VFA TEA 객체 생성 """
     return VFA_TEA(system, OSBL_units=OSBL_units)
-
-if __name__ == '__main__':
-    # TEA 모듈 실행 시, 여기서 ED 유닛에 대한 monkey-patching을 적용합니다.
-    # monkey-patching: ED 유닛에 cost_breakdown 속성이 없다면 추가합니다.
-    ed_unit = bst.main_flowsheet.unit.get('S401', None)
-    if ed_unit is not None and not hasattr(ed_unit, 'cost_breakdown'):
-        def get_monkeypatched_cost_breakdown(self):
-            dr = self.design_results
-            breakdown = {}
-            for key in ['Membrane cost', 'NF cost', 'Current Collector cost', 'Coating cost', 'Frame cost']:
-                if key in dr:
-                    breakdown[key] = dr[key]
-            return breakdown
-        ed_unit.__class__.cost_breakdown = property(get_monkeypatched_cost_breakdown)

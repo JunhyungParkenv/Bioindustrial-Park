@@ -128,8 +128,10 @@ def run_model(N=1000, rule='L', notify_runs=10, model=model):
 # =============================================================================
 # ED CAPEX Breakdown Print Function
 # =============================================================================
-
 def save_ed_capex_breakdown_to_excel(filename='ed_capex_breakdown.xlsx'):
+    """
+    Save the ED unit's CAPEX breakdown (cost components) to an Excel file.
+    """
     ed_breakdown = tea.ED_CAPEX_breakdown
     if ed_breakdown:
         df = pd.DataFrame.from_dict(ed_breakdown, orient='index', columns=['Cost (USD)'])
@@ -138,6 +140,7 @@ def save_ed_capex_breakdown_to_excel(filename='ed_capex_breakdown.xlsx'):
         print(f"ED CAPEX breakdown saved to {filename}")
     else:
         print("No ED CAPEX breakdown available.")
+
         
 # =============================================================================
 # Main Execution
@@ -145,4 +148,5 @@ def save_ed_capex_breakdown_to_excel(filename='ed_capex_breakdown.xlsx'):
 # Run the model
 if __name__ == '__main__':
     run_model()
-    save_ed_capex_breakdown_to_excel()
+    # 추가: ED CAPEX breakdown을 Excel 파일로 저장
+save_ed_capex_breakdown_to_excel()
