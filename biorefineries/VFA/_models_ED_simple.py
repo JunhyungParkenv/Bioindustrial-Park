@@ -89,8 +89,8 @@ plt.show()
 #%%
 # Contour Plot: Current Density (X) vs. AC Tank Volume (Y) with Membrane Area (Color)
 # 전류 밀도와 AC 탱크 부피의 범위를 조정하여 더 조밀하게 샘플링
-j_values = np.linspace(1, 5, 15)  # 1~10 A/m² 사이에서 15개 샘플링
-ac_tank_volumes = np.linspace(0.01, 50, 15)  # 0.01~1 m³ 사이에서 15개 샘플링
+j_values = np.linspace(1, 15, 15)  # 1~10 A/m² 사이에서 15개 샘플링
+ac_tank_volumes = np.linspace(0.01, 500, 15)  # 0.01~1 m³ 사이에서 15개 샘플링
 
 J, AC_Vol = np.meshgrid(j_values, ac_tank_volumes)
 Membrane_Area = np.zeros_like(J)

@@ -20,6 +20,22 @@ from biorefineries.cornstover import CellulosicEthanolTEA
 import biosteam as bst
 
 class VFA_TEA(CellulosicEthanolTEA):
+    _TCI_ratio_cached = 1
+    
+    @property
+    def ED_CAPEX_breakdown(self):
+        """
+        ED 유닛(S401)의 cost_breakdown 딕셔너리를 반환합니다.
+        예를 들어, {'CEM': 12345.67, 'NF': 6789.01, ...}와 같이 각 구성 요소별
+        설치 비용이 표시됩니다.
+        """
+        try:
+            # 시스템 내 ED 유닛은 보통 F.unit['S401']에 위치한다고 가정합니다.
+            ed_unit = self.system.unit['S401']
+            return ed_unit.cost_breakdown
+        except Exception as e:
+            print("Error retrieving ED CAPEX breakdown:", e)
+            return {}
     """
     VFA Techno-Economic Analysis (TEA) 모델.
     기존 CellulosicEthanolTEA를 확장하여 VFA 공정에 맞게 수정.

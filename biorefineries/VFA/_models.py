@@ -22,13 +22,14 @@ from biorefineries.VFA._systems_VFA import VFA_sys, F
 # =============================================================================
 
 # Load process preferences and settings
-load_preferences_and_process_settings()
+load_preferences_and_process_settings()  # Flow 단위를 'kg/hr'로 설정
+F = bst.Flowsheet('VFA_Recovery')
+bst.main_flowsheet.set_flowsheet(F)
 
 # Initialize VFA system and TEA
+# 시스템 및 TEA 초기화
 sys = VFA_sys
 tea = create_vfa_tea(sys)
-
-# Set system operating hours
 sys.operating_hours = tea.operating_days * 24
 
 # =============================================================================
@@ -126,6 +127,25 @@ def run_model(N=1000, rule='L', notify_runs=10, model=model):
 
     return model
 
+# =============================================================================
+# ED CAPEX Breakdown Print Function
+# =============================================================================
+
+def print_ed_capex_breakdown():
+    """
+    Print the ED unit's CAPEX breakdown (cost components) to the console.
+    """
+    ed_breakdown = tea.ED_CAPEX_breakdown
+    if ed_breakdown:
+        print("=== ED CAPEX Breakdown ===")
+        for key, cost in ed_breakdown.items():
+            print(f"{key}: {cost:,.2f} USD")
+    else:
+        print("No ED CAPEX breakdown available.")
+        
+# =============================================================================
+# Main Execution
+# =============================================================================
 # Run the model
 if __name__ == '__main__':
     run_model()
