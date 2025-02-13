@@ -109,7 +109,7 @@ def create_VFA_sys(ins, outs):
         """ED 유닛과 AC Tank 설정 업데이트"""
         eff_ac = S401.outs[1]
         total_vfa_mass = eff_ac.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid'].sum()  # kg/hr
-        total_vfa_mol = total_vfa_mass / 60.05  # kmol/hr (평균 분자량 60.05 g/mol)
+        total_vfa_mol = total_vfa_mass / 102.13  # kmol/hr (평균 분자량 60.05 g/mol)
         
         I = S401.j * S401.A_m  # 총 전류
         flux_dict = S401.calculate_flux(I)
