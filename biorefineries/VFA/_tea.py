@@ -31,7 +31,7 @@ class VFA_TEA(CellulosicEthanolTEA):
         """
         try:
             # 시스템 내 ED 유닛은 보통 F.unit['S401']에 위치한다고 가정합니다.
-            ed_unit = self.system.unit['S401']
+            ed_unit = bst.main_flowsheet.unit['S401']
             return ed_unit.cost_breakdown
         except Exception as e:
             print("Error retrieving ED CAPEX breakdown:", e)

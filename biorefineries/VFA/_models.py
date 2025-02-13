@@ -23,8 +23,6 @@ from biorefineries.VFA._systems_VFA import VFA_sys, F
 
 # Load process preferences and settings
 load_preferences_and_process_settings()  # Flow 단위를 'kg/hr'로 설정
-F = bst.Flowsheet('VFA_Recovery')
-bst.main_flowsheet.set_flowsheet(F)
 
 # Initialize VFA system and TEA
 # 시스템 및 TEA 초기화
@@ -131,15 +129,16 @@ def run_model(N=1000, rule='L', notify_runs=10, model=model):
 # ED CAPEX Breakdown Print Function
 # =============================================================================
 
-def print_ed_capex_breakdown():
+def save_ed_capex_breakdown_to_excel(filename='ed_capex_breakdown.xlsx'):
     """
-    Print the ED unit's CAPEX breakdown (cost components) to the console.
+    Save the ED unit's CAPEX breakdown to an Excel file.
     """
     ed_breakdown = tea.ED_CAPEX_breakdown
     if ed_breakdown:
-        print("=== ED CAPEX Breakdown ===")
-        for key, cost in ed_breakdown.items():
-            print(f"{key}: {cost:,.2f} USD")
+        df = pd.DataFrame.from_dict(ed_breakdown, orient='index', columns=['Cost (USD)'])
+        df.index.name = 'Component'
+        df.to_excel(filename)
+        print(f"ED CAPEX breakdown saved to {filename}")
     else:
         print("No ED CAPEX breakdown available.")
         
@@ -149,3 +148,4 @@ def print_ed_capex_breakdown():
 # Run the model
 if __name__ == '__main__':
     run_model()
+    save_ed_capex_breakdown_to_excel()
