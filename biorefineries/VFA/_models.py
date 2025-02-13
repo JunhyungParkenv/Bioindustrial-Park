@@ -130,9 +130,6 @@ def run_model(N=1000, rule='L', notify_runs=10, model=model):
 # =============================================================================
 
 def save_ed_capex_breakdown_to_excel(filename='ed_capex_breakdown.xlsx'):
-    """
-    Save the ED unit's CAPEX breakdown to an Excel file.
-    """
     ed_breakdown = tea.ED_CAPEX_breakdown
     if ed_breakdown:
         df = pd.DataFrame.from_dict(ed_breakdown, orient='index', columns=['Cost (USD)'])

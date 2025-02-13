@@ -108,3 +108,17 @@ class VFA_TEA(CellulosicEthanolTEA):
 def create_vfa_tea(system, OSBL_units=None):
     """ VFA TEA 객체 생성 """
     return VFA_TEA(system, OSBL_units=OSBL_units)
+
+if __name__ == '__main__':
+    # TEA 모듈 실행 시, 여기서 ED 유닛에 대한 monkey-patching을 적용합니다.
+    # monkey-patching: ED 유닛에 cost_breakdown 속성이 없다면 추가합니다.
+    ed_unit = bst.main_flowsheet.unit.get('S401', None)
+    if ed_unit is not None and not hasattr(ed_unit, 'cost_breakdown'):
+        def get_monkeypatched_cost_breakdown(self):
+            dr = self.design_results
+            breakdown = {}
+            for key in ['Membrane cost', 'NF cost', 'Current Collector cost', 'Coating cost', 'Frame cost']:
+                if key in dr:
+                    breakdown[key] = dr[key]
+            return breakdown
+        ed_unit.__class__.cost_breakdown = property(get_monkeypatched_cost_breakdown)
