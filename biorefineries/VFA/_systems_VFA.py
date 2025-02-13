@@ -4,9 +4,7 @@ Created on Thu Nov 21 21:30:14 2024
 
 @author: Junhyung Park
 """
-
 # %% Setup
-
 import biosteam as bst
 import thermosteam as tmo
 from biosteam import Stream, SystemFactory
@@ -27,7 +25,7 @@ load_preferences_and_process_settings()  # Flow 단위를 'kg/hr'로 설정
 tmo.settings.set_thermo(chems)
 
 # ✅ **🔹 Global Variable for Target Concentration**
-target_concentration = 3.0  # g/L
+target_concentration = 2.694  # g/L # 0.898 (ED -> DC) * 3 -> 
 
 # Flowsheet Initialization
 F = bst.Flowsheet('VFA_Recovery')
@@ -109,7 +107,7 @@ def create_VFA_sys(ins, outs):
         """ED 유닛과 AC Tank 설정 업데이트"""
         eff_ac = S401.outs[1]
         total_vfa_mass = eff_ac.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid'].sum()  # kg/hr
-        total_vfa_mol = total_vfa_mass / 102.13  # kmol/hr (평균 분자량 60.05 g/mol)
+        total_vfa_mol = total_vfa_mass / 102.13  # kmol/hr (Valeric acid 60.05 g/mol)
         
         I = S401.j * S401.A_m  # 총 전류
         flux_dict = S401.calculate_flux(I)
@@ -176,7 +174,6 @@ def create_VFA_sys(ins, outs):
         else:
             print("⚠ Warning: AC Tank의 VFA 질량 유량이 0입니다. tau 업데이트를 건너뜁니다.")
 
-
     # --- 6. DC Output Handling (재순환 포함) ---
     S_DC = bst.Splitter(
         'S_DC',
@@ -232,7 +229,6 @@ def create_VFA_sys(ins, outs):
 
     # Return all units for inspection (optional)
     # return [R101, U302, S401, E101, S201, T101]
-
 #%%
 # VFA System
 VFA_sys = create_VFA_sys()
