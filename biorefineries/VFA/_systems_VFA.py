@@ -27,7 +27,7 @@ load_preferences_and_process_settings()  # Flow 단위를 'kg/hr'로 설정
 tmo.settings.set_thermo(chems)
 
 # ✅ **🔹 Global Variable for Target Concentration**
-target_concentration = 8  # g/L
+target_concentration = 3.0  # g/L
 
 # Flowsheet Initialization
 F = bst.Flowsheet('VFA_Recovery')

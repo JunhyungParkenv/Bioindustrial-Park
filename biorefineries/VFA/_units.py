@@ -263,7 +263,7 @@ class ED(bst.Unit):
 
         # 목표 농도에 맞춰야 하는 총 mol 수 계산
         target_mol_transfer = (self.target_concentration * 1000 / 60.05) * Q  # mol/hr
-        new_A_m = (target_mol_transfer * self.t / 3600) / (total_flux * self.t) # m2
+        new_A_m = target_mol_transfer / (3600 * total_flux) # m2
 
         return max(new_A_m, 0.5)  # 최소 1.0 m² 보장
 
