@@ -283,12 +283,12 @@ class ED(bst.Unit):
         J_T_dict = self.calculate_flux(I) # mol/m²/s
 
         for ion in self.CE_dict:
-            available_amount = inf_dc.imol[ion] # kmol/hr
-            n_transferred = J_T_dict[ion] * self.A_m * self.t # mol
-            actual_transfer = min(n_transferred, available_amount)
             # available_amount = inf_dc.imol[ion] # kmol/hr
-            # n_transferred = J_T_dict[ion] / 1000 * self.A_m * 3600 # kmol/hr
+            # n_transferred = J_T_dict[ion] * self.A_m * self.t # mol
             # actual_transfer = min(n_transferred, available_amount)
+            available_amount = inf_dc.imol[ion] # kmol/hr
+            n_transferred = J_T_dict[ion] / 1000 * self.A_m * 3600 # kmol/hr
+            actual_transfer = min(n_transferred, available_amount)
 
             eff_ac.imol[ion] = inf_ac.imol[ion] + actual_transfer
             eff_dc.imol[ion] = inf_dc.imol[ion] - actual_transfer
