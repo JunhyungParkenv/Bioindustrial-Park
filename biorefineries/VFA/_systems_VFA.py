@@ -79,13 +79,13 @@ def create_VFA_sys(ins, outs):
 
     # --- 6. Mix Tanks (DC Tank, AC Tank) ---
     T301 = _units.DC_Tank(
-        'dc_tank',
+        'T301',
         ins=(S302-0, recycle_dc),
         outs='tank_to_dc',
-        tau=24  # 기본값, 나중에 업데이트될 예정
+        tau=6  # 기본값, 나중에 업데이트될 예정
     )
     T302 = _units.AC_Tank(
-        'ac_tank',
+        'T302',
         ins=(S302-1, recycle_ac),
         outs='tank_to_ac',
         tau=6  # 나중에 업데이트됨
@@ -238,8 +238,8 @@ VFA_sys.simulate()
 VFA_sys.show()
 #%%
 # DC/AC Tank의 체류 시간과 ED 유닛의 디자인 결과 출력
-dc_tank = F.unit['dc_tank']
-ac_tank = F.unit['ac_tank']
+dc_tank = F.unit['T301']
+ac_tank = F.unit['T302']
 ed_unit = F.unit['S401']
 
 # 결과 출력

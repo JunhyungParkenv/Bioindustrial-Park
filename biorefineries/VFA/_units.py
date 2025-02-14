@@ -225,15 +225,17 @@ class AC_Tank(MixTank):
         Design = self.design_results
         Design['Volume'] = feed.F_vol * self.tau  # 체류시간과 유량 기반 부피 계산
         super()._design()
+
+
 # --- Electrodialysis Unit (ED) ---  
 # Constants  
 F = 96485.3  # Faraday constant (C/mol)  
 
-@cost('Membrane area', 'CEM', cost=100, S=1, CE=567.3, n=1, BM=2)
-@cost('Membrane area', 'NF', cost=30, S=1, CE=567.3, n=1, BM=1.5)
-@cost('Membrane area', 'Current Collector', cost=20, S=1, CE=567.3, n=1, BM=1.2)
-@cost('Membrane area', 'Coating Solution', cost=0.057282, S=1, CE=567.3, n=1, BM=1.1)
-@cost('Membrane area', 'Frames', cost=2, S=1, CE=567.3, n=1, BM=1.1)
+@cost('Membrane area', 'CEM', cost=100, S=1, CE=567.3, n=1, BM=1, lifetime=5)
+@cost('Membrane area', 'NF', cost=30, S=1, CE=567.3, n=1, BM=1, lifetime=5)
+@cost('Membrane area', 'Current Collector', cost=20, S=1, CE=567.3, n=1, BM=1, lifetime=10)
+@cost('Membrane area', 'Coating Solution', cost=0.057282, S=1, CE=567.3, n=1, BM=1)
+@cost('Membrane area', 'Frames', cost=2, S=1, CE=567.3, n=1, BM=1)
 class ED(bst.Unit):
     _N_ins = 2  # inf_dc, inf_ac
     _N_outs = 2  # eff_dc, eff_ac
@@ -312,3 +314,35 @@ class ED(bst.Unit):
         D['System resistance'] = self.R
         D['System voltage'] = D['Total current'] * self.R
         D['Power consumption'] = D['System voltage'] * D['Total current']
+        
+    # def _cost(self):
+    #     D = self.design_results
+    #     # ED 유닛의 _design() 실행 후 'Membrane area'가 존재해야 함
+    #     if 'Membrane area' not in D:
+    #         raise ValueError("Design has not been computed. Call _design() before _cost().")
+        
+    #     self.baseline_purchase_costs['CEM'] = 2 * 100 * D['Membrane area']
+    #     self.baseline_purchase_costs['NF'] = 30 * D['Membrane area']
+    #     self.baseline_purchase_costs['Current Collector'] = 20 * D['Membrane area']
+    #     self.baseline_purchase_costs['Coating Solution'] = 0.057282 * D['Membrane area']
+    #     self.baseline_purchase_costs['Frames'] = 2 * D['Membrane area']
+    
+    #     D['Membrane cost'] = self.baseline_purchase_costs['CEM']
+    #     D['NF cost'] = self.baseline_purchase_costs['NF']
+    #     D['Current Collector cost'] = self.baseline_purchase_costs['Current Collector']
+    #     D['Coating cost'] = self.baseline_purchase_costs['Coating Solution']
+    #     D['Frame cost'] = self.baseline_purchase_costs['Frames']
+    
+    #     if 'Power consumption' in D:
+    #         self.power_utility.consumption = D['Power consumption'] / 1000
+    
+    # @property
+    # def cost_breakdown(self):
+    #     return {
+    #         'Membrane cost': self.design_results.get('Membrane cost', None),
+    #         'NF cost': self.design_results.get('NF cost', None),
+    #         'Current Collector cost': self.design_results.get('Current Collector cost', None),
+    #         'Coating cost': self.design_results.get('Coating cost', None),
+    #         'Frame cost': self.design_results.get('Frame cost', None),
+    #     }
+
