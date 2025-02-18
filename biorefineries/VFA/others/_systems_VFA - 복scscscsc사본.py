@@ -96,7 +96,7 @@ def create_VFA_sys(ins, outs):
         'S401',
         ins=(T301-0, T302-0),
         outs=('treated_dc', 'treated_ac'),
-        I=12.56,
+        j=12.56,
         t=24*3600,
         A_m=1.0,  # 초기 멤브레인 면적, 이후 업데이트됨
         target_concentration=target_concentration
@@ -109,7 +109,7 @@ def create_VFA_sys(ins, outs):
         total_vfa_mass = eff_ac.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid', 'LacticAcid'].sum()  # kg/hr
         total_vfa_mol = total_vfa_mass / 102.13  # kmol/hr (Valeric acid 60.05 g/mol)
         
-        I = S401.I  # 총 전류
+        I = S401.j * S401.A_m  # 총 전류
         flux_dict = S401.calculate_flux(I)
         total_flux = sum(flux_dict.values())  # mol/(m2*s)
     

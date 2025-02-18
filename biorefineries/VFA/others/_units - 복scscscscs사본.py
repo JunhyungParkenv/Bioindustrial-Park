@@ -255,16 +255,16 @@ class ED(bst.Unit):
     _N_ins = 2  # inf_dc, inf_ac
     _N_outs = 2  # eff_dc, eff_ac
 
-    def __init__(self, ID='', ins=None, outs=(), thermo=None, CE_dict=None, I=5.058,
-                 A_m=1.0, r_m=0.06368, z_T=1.0, t=24*3600, target_concentration=80000):
+    def __init__(self, ID='', ins=None, outs=(), thermo=None, CE_dict=None, j=5.058,
+                 A_m=1.0, R=0.0000222, z_T=1.0, t=24*3600, target_concentration=80000):
         super().__init__(ID, ins, outs, thermo=thermo)
         self.CE_dict = CE_dict or {
             'AceticAcid': 0.164472, 'PropionicAcid': 0.082236, 'ButyricAcid': 0.059,
             'ValericAcid': 0.063118, 'LacticAcid': 0.082236, 'Water': 0.0
         }
-        self.I = I  # 전류 (A)
+        self.j = j  # 전류 밀도 (A/m²)
         self.A_m = A_m  # 멤브레인 면적 (m²), 시스템 모듈에서 조정
-        self.r_m = r_m  # 면적 저항 (Ω·m²)
+        self.R = R  # 시스템 저항 (Ohm)
         self.z_T = z_T  # 이온 전하수
         self.t = t  # 작동 시간 (초)
         self.target_concentration = target_concentration  # 목표 농도 (g/L)
@@ -297,7 +297,8 @@ class ED(bst.Unit):
             return
 
         # 전류량 계산
-        J_T_dict = self.calculate_flux(self.I) # mol/m²/s
+        I = self.j * self.A_m
+        J_T_dict = self.calculate_flux(I) # mol/m²/s
 
         for ion in self.CE_dict:
             # available_amount = inf_dc.imol[ion] # kmol/hr
@@ -325,9 +326,9 @@ class ED(bst.Unit):
     def _design(self):
         D = self.design_results
         D['Membrane area'] = self.A_m
-        D['Total current'] = self.I
-        D['System resistance'] = self.r_m / self.A_m  # r_m = R * A_m
-        D['System voltage'] = D['Total current'] * D['System resistance']
+        D['Total current'] = self.j * self.A_m
+        D['System resistance'] = self.R
+        D['System voltage'] = D['Total current'] * self.R
         D['Power consumption'] = D['System voltage'] * D['Total current']
         
     # def _cost(self):

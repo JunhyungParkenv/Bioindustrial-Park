@@ -38,7 +38,7 @@ def create_model():
         Metric('Operating Cost (OPEX)', lambda: tea.OPEX / 1e6, 'Million USD/yr'),
         Metric('Net Production Cost', lambda: tea.solve_price(F.stored_vfa), 'USD/kg'),
         Metric('Global Warming Potential', lambda: sys.get_total_feeds_impact('GWP100') * 1e3 / sys.operating_hours, 'g CO2-eq/hr'),
-        Metric('MPSP (Minimum Product Selling Price)', lambda: tea.solve_price(F.stored_vfa)/100, 'USD/kg') # Unit Conversion
+        Metric('MPSP (Minimum Product Selling Price)', lambda: tea.solve_price(F.stored_vfa), 'USD/kg') # Unit Conversion
     ]
     
     # 모델 생성 (민감도 분석 대상 파라미터 및 Metric 포함)
