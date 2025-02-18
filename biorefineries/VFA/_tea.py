@@ -22,18 +22,6 @@ import biosteam as bst
 class VFA_TEA(CellulosicEthanolTEA):
     _TCI_ratio_cached = 1
     
-    @property
-    def ED_CAPEX_breakdown(self):
-        """
-        Returns the cost breakdown of the ED unit (assumed to be in bst.main_flowsheet.unit['S401']).
-        Example output: {'Membrane cost': 12345.67, 'NF cost': 6789.01, ...}
-        """
-        try:
-            ed_unit = bst.main_flowsheet.unit['S401']
-            return ed_unit.cost_breakdown
-        except Exception as e:
-            print("Error retrieving ED CAPEX breakdown:", e)
-            return {}
     """
     VFA Techno-Economic Analysis (TEA) 모델.
     기존 CellulosicEthanolTEA를 확장하여 VFA 공정에 맞게 수정.
@@ -101,7 +89,7 @@ class VFA_TEA(CellulosicEthanolTEA):
     @property
     def MPSP(self):
         """ 최소 제품 판매 가격 (MPSP) 수정 """
-        return super().MPSP * 1.1  # 10% 가격 증가 반영
+        return super().MPSP  # 10% 가격 증가 반영
 
 def create_vfa_tea(system, OSBL_units=None):
     """ VFA TEA 객체 생성 """

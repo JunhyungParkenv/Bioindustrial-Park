@@ -64,11 +64,26 @@ class UASB(Unit):
         self.P = P
         self.cofermentation_rxns = ParallelRxn([
             # Reaction definition                                          Reactant    Conversion
-            Rxn('Glucose -> 0.0519 LacticAcid + 0.01 ValericAcid + 0.0632 ButyricAcid + 0.0119 PropionicAcid + 0.141 AceticAcid', 
+            Rxn('Glucose -> 0.4243 LacticAcid + 0.0113 ValericAcid + 0.0674 ButyricAcid + 0.0158 PropionicAcid + 0.1755 AceticAcid', 
                 'Glucose', 
-                0.9999),
+                1.0),
         ])
-
+        # Day 40
+        #     Rxn('Glucose -> 0.0519 LacticAcid + 0.01 ValericAcid + 0.0632 ButyricAcid + 0.0119 PropionicAcid + 0.141 AceticAcid', 
+        #         'Glucose', 
+        #         0.9999),
+        # ])
+        # Day 3
+        # Rxn(
+        #     'Glucose -> '
+        #     '0.4243 LacticAcid + '
+        #     '0.0113 ValericAcid + '
+        #     '0.0674 ButyricAcid + '
+        #     '0.0158 PropionicAcid + '
+        #     '0.1755 AceticAcid',
+        #     'Glucose', 
+        #     1.0
+        # )
     def _run(self):
         """Run the reaction and separate effluents."""
         feed = self.ins[0]

@@ -38,7 +38,7 @@ def create_model():
         Metric('Operating Cost (OPEX)', lambda: tea.OPEX / 1e6, 'Million USD/yr'),
         Metric('Net Production Cost', lambda: tea.solve_price(F.stored_vfa), 'USD/kg'),
         Metric('Global Warming Potential', lambda: sys.get_total_feeds_impact('GWP100') * 1e3 / sys.operating_hours, 'g CO2-eq/hr'),
-        Metric('MPSP (Minimum Product Selling Price)', lambda: tea.solve_price(F.stored_vfa)/100, 'USD/kg') # Unit Conversion
+        Metric('MPSP (Minimum Product Selling Price)', lambda: tea.solve_price(F.stored_vfa), 'USD/kg')
     ]
     
     # 모델 생성 (민감도 분석 대상 파라미터 및 Metric 포함)
@@ -72,6 +72,43 @@ def create_model():
     def set_AC_tank_tau(x):
         F.T302.tau = x
 
+    # # 고정 파라미터 (민감도 분석 대상이 아닌 값들은 그대로 설정)
+    # @model.parameter(name='Feedstock Flow',
+    #                  element=F.feedstock,
+    #                  kind='coupled',
+    #                  units='kg/hr',
+    #                  baseline=12000,
+    #                  distribution=shape.Triangle(10000, 12000, 14000))
+    # def set_feedstock_flow(flow):
+    #     F.feedstock.F_mass = flow
+
+    # @model.parameter(name='Electricity Price',
+    #                  element='Electricity',
+    #                  kind='isolated',
+    #                  units='$/kWh',
+    #                  baseline=0.07,
+    #                  distribution=shape.Triangle(0.06, 0.07, 0.08))
+    # def set_electricity_price(p):
+    #     bst.PowerUtility.price = p
+
+    # @model.parameter(name='VFA Selling Price',
+    #                  element=F.stored_vfa,
+    #                  kind='isolated',
+    #                  units='$/kg',
+    #                  baseline=2.5,
+    #                  distribution=shape.Triangle(2.0, 2.5, 3.0))
+    # def set_vfa_price(p):
+    #     F.stored_vfa.price = p
+
+    # @model.parameter(name='Operating Days',
+    #                  element='TEA',
+    #                  kind='isolated',
+    #                  units='days/yr',
+    #                  baseline=350,
+    #                  distribution=shape.Uniform(320, 350))
+    # def set_operating_days(days):
+    #     tea.operating_days = days
+    #     sys.operating_hours = days * 24
 
     return model
 
