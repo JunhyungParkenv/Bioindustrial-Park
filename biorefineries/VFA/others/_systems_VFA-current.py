@@ -26,7 +26,7 @@ tmo.settings.set_thermo(chems)
 
 # ✅ **🔹 Global Variable for Target Concentration**
 # target_concentration = 2.694  # g/L # 0.898 (ED -> DC) * 3 -> 
-target_concentration = 45  # g/L # 0.898 (ED -> DC) * 3 -> 
+target_concentration = 10  # g/L # 0.898 (ED -> DC) * 3 -> 
 # Flowsheet Initialization
 F = bst.Flowsheet('VFA_Recovery')
 bst.main_flowsheet.set_flowsheet(F)
@@ -96,7 +96,7 @@ def create_VFA_sys(ins, outs):
         'S401',
         ins=(T301-0, T302-0),
         outs=('treated_dc', 'treated_ac'),
-        j=200, # 11.38
+        I=5000,
         t=24*3600,
         A_m=1.0,  # 초기 멤브레인 면적, 이후 업데이트됨
         target_concentration=target_concentration
@@ -104,27 +104,26 @@ def create_VFA_sys(ins, outs):
     
     @S401.add_specification(run=True)
     def update_ed_parameters():
-        """ED & AC Tank Update"""
+        """ED 유닛과 AC Tank 설정 업데이트"""
         eff_ac = S401.outs[1]
         total_vfa_mass = eff_ac.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid', 'LacticAcid'].sum()  # kg/hr
         total_vfa_mol = total_vfa_mass / 102.13  # kmol/hr (Valeric acid 60.05 g/mol)
         
-        I = S401.j * S401.A_m  # 총 전류
+        I = S401.I  # 총 전류
         flux_dict = S401.calculate_flux(I)
         total_flux = sum(flux_dict.values())  # mol/(m2*s)
     
-        # ✅ Q decided by ED flow rate
+        # ✅ AC Tank로 가는 유량을 Q로 설정
         Q = eff_ac.F_vol  # m³/hr
         
-        # ✅ Updated Membrane Area (by Q)
+        # ✅ 업데이트된 멤브레인 면적 계산 (Q 반영)
         new_A_m = S401.calculate_membrane_area(total_vfa_mol, total_flux, Q)
         S401.A_m = new_A_m
         print(f"🔹 Updated ED Membrane Area: {S401.A_m:.4f} m²")
 
-        # 🔹 Update tau of AC Tank
+        # 🔹 AC Tank 체류 시간 업데이트
         update_ac_tau_based_on_target_concentration()
-        # 🔹 Update tau of DC Tank (간단한 조정 함수 적용)
-        update_dc_tau()
+
     # Method 1
     # def update_ac_tau_based_on_target_concentration():
     #     """목표 농도를 반영한 AC Tank 체류시간 (tau) 조정"""
@@ -156,132 +155,31 @@ def create_VFA_sys(ins, outs):
     #     print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
     
     # Method 2
-    # def update_ac_tau_based_on_target_concentration():
-    #     """목표 농도를 만족하도록 AC Tank의 체류시간(tau)을 업데이트 (질량 균형 기반)"""
-    #     # AC Tank의 설계 부피 업데이트 (m³)
-    #     T302._design()  
-    #     V_ac = T302.design_results['Volume']  # m³
-        
-    #     # AC Tank에서 VFA의 총 질량 유량 (kg/hr)
-    #     total_vfa_mass_ac = T302.outs[0].imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid', 'LacticAcid'].sum()
-        
-    #     # 질량 유량이 0이 아니라면 새로운 체류시간 계산
-    #     if total_vfa_mass_ac > 1e-6:
-    #         # target_concentration은 g/L이고, 1 g/L = 1 kg/m³
-    #         # 따라서, 필요한 체류시간 (hr) = (탱크 부피 [m³] * 목표 농도 [kg/m³]) / (VFA 질량 유량 [kg/hr])
-    #         new_tau = V_ac * target_concentration / total_vfa_mass_ac
-    #         T302.tau = new_tau
-    #         print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
-    #     else:
-    #         print("⚠ Warning: AC Tank의 VFA 질량 유량이 0입니다. tau 업데이트를 건너뜁니다.")
-
-    # Method 3
     def update_ac_tau_based_on_target_concentration():
-        """AC Tank의 배출량을 목표 농도에 맞춰 조정"""
+        """목표 농도를 만족하도록 AC Tank의 체류시간(tau)을 업데이트 (질량 균형 기반)"""
+        # AC Tank의 설계 부피 업데이트 (m³)
         T302._design()  
         V_ac = T302.design_results['Volume']  # m³
-        total_vfa_mass_ac = T302.outs[0].imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid', 'LacticAcid'].sum() # kg/hr
-    
-        # ✅ 목표 농도를 고려한 유출량 조정
-        actual_concentration_ac = total_vfa_mass_ac / T302.outs[0].F_vol  # g/L
-        print(f"📌 Actual Concentration in AC Tank: {actual_concentration_ac:.4f} g/L (Target: {target_concentration} g/L)")
-        if actual_concentration_ac < target_concentration:
-            print("🔹 Adjusting AC Tank discharge to maintain target concentration")
-            T302.outs[0].F_mass *= 0.9  # 배출량 감소
-        elif actual_concentration_ac > target_concentration:
-            print("🔹 Adjusting AC Tank discharge to lower concentration")
-            T302.outs[0].F_mass *= 1.1  # 배출량 증가
-    
-        new_tau = V_ac * target_concentration / total_vfa_mass_ac
-        T302.tau = new_tau
-        print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr (adjusted for target concentration)")
         
-    def update_dc_tau():
-        """DC Tank의 체류시간을 AC Tank의 농도 변화에 따라 조정"""
-        T301._design()  # DC Tank 디자인 업데이트
+        # AC Tank에서 VFA의 총 질량 유량 (kg/hr)
+        total_vfa_mass_ac = T302.outs[0].imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid', 'LacticAcid'].sum()
         
-        V_dc = T301.design_results['Volume']  # DC Tank 부피 (m³)
-        Q_dc = T301.outs[0].F_vol  # DC Tank 전체 배출 부피 유량 (m³/hr)
-    
-        # ✅ DC Tank 부피가 너무 작으면 최소값 설정
-        if V_dc < 0.1:  
-            print("⚠ Warning: DC Tank volume is too small. Assigning minimum volume (0.1 m³).")
-            V_dc = 0.1  # 최소 부피 설정
-        elif V_dc > 5:
-            print("⚠ Warning: DC Tank volume is too large. Assigning maximum volume (5 m³).")
-            V_dc = 5  # 최대 부피 제한
-    
-        # ✅ DC Tank 배출 스트림의 조성이 정의되지 않았을 경우 기본값 할당
-        if T301.outs[0].isempty():
-            print("⚠ Warning: DC Tank outlet stream is empty. Assigning default composition.")
-            T301.outs[0].imass['Water'] = 1e-6  # 기본 성분 추가
-            T301.outs[0].imass['AceticAcid'] = 1e-6  
-    
-        # ✅ DC Tank의 체류시간 업데이트 (총 부피 유량이 0이 아닐 경우)
-        if Q_dc > 1e-6:
-            new_tau_dc = max(0.1, min(10, V_dc / Q_dc))  # 최소 0.1hr, 최대 10hr로 제한
-            T301.tau = new_tau_dc
-            print(f"✅ Updated DC Tank tau: {T301.tau:.4f} hr (using F_vol)")
+        # 질량 유량이 0이 아니라면 새로운 체류시간 계산
+        if total_vfa_mass_ac > 1e-6:
+            # target_concentration은 g/L이고, 1 g/L = 1 kg/m³
+            # 따라서, 필요한 체류시간 (hr) = (탱크 부피 [m³] * 목표 농도 [kg/m³]) / (VFA 질량 유량 [kg/hr])
+            new_tau = V_ac * target_concentration / total_vfa_mass_ac
+            T302.tau = new_tau
+            print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr")
         else:
-            print("⚠ Warning: DC Tank의 총 부피 유량이 0입니다. tau 업데이트를 건너뜁니다.")
-
-
-        
-    # def update_ac_dc_tau_based_on_target_concentration():
-    #     """AC Tank와 DC Tank의 배출량을 목표 농도에 맞춰 조정"""
-    #     T302._design()  
-    #     T301._design()  # DC Tank 디자인 업데이트
-    
-    #     V_ac = T302.design_results['Volume']  # AC Tank 부피 (m³)
-    #     V_dc = T301.design_results['Volume']  # DC Tank 부피 (m³)
-    
-    #     total_vfa_mass_ac = T302.outs[0].imass['AceticAcid', 'PropionicAcid', 
-    #                                           'ButyricAcid', 'ValericAcid', 'LacticAcid'].sum()
-    #     total_vfa_mass_dc = T301.outs[0].imass['AceticAcid', 'PropionicAcid', 
-    #                                           'ButyricAcid', 'ValericAcid', 'LacticAcid'].sum()
-        
-    #     # ✅ 목표 농도를 고려한 AC Tank의 유출량 조정
-    #     if T302.outs[0].F_vol > 1e-6:
-    #         actual_concentration_ac = total_vfa_mass_ac / T302.outs[0].F_vol  # g/L
-    #     else:
-    #         actual_concentration_ac = 0  # 볼륨이 0일 경우 0으로 처리
-    
-    #     print(f"📌 Actual Concentration in AC Tank: {actual_concentration_ac:.4f} g/L (Target: {target_concentration} g/L)")
-    
-    #     if actual_concentration_ac < target_concentration:
-    #         print("🔹 Adjusting AC Tank discharge to maintain target concentration")
-    #         T302.outs[0].F_mass *= 0.9  # 배출량 감소
-    #         new_tau_ac = V_ac * target_concentration / total_vfa_mass_ac  # 기존 공식 적용
-    #     elif actual_concentration_ac > target_concentration:
-    #         print("🔹 Adjusting AC Tank discharge to lower concentration")
-    #         T302.outs[0].F_mass *= 1.1  # 배출량 증가
-    #         new_tau_ac = V_ac * target_concentration / total_vfa_mass_ac  # 기존 공식 유지
-    #     else:
-    #         new_tau_ac = T302.tau  # 변화 없음
-    
-    #     T302.tau = new_tau_ac
-    #     print(f"✅ Updated AC Tank tau: {T302.tau:.4f} hr (adjusted for target concentration)")
-    
-    #     # ✅ DC Tank 체류시간 조정: AC Tank의 상태에 따라 조정
-    #     if actual_concentration_ac < target_concentration:
-    #         print("🔹 Adjusting DC Tank tau to match AC Tank target concentration")
-    #         new_tau_dc = V_dc * target_concentration / total_vfa_mass_dc  # DC Tank 체류시간 조정
-    #     elif actual_concentration_ac > target_concentration:
-    #         print("🔹 Adjusting DC Tank tau to balance AC Tank")
-    #         new_tau_dc = V_dc * target_concentration / total_vfa_mass_dc  # DC Tank 체류시간 조정
-    #     else:
-    #         new_tau_dc = T301.tau  # 변화 없음
-    
-    #     T301.tau = new_tau_dc
-    #     print(f"✅ Updated DC Tank tau: {T301.tau:.4f} hr (adjusted for AC Tank balance)")
-
+            print("⚠ Warning: AC Tank의 VFA 질량 유량이 0입니다. tau 업데이트를 건너뜁니다.")
 
     # --- 6. DC Output Handling (재순환 포함) ---
     S_DC = bst.Splitter(
         'S_DC',
         ins=S401-0,  # ED의 DC 출력
         outs=(recycle_dc, dc_output),
-        split=0.9 # 50% 재순환, 50% 배출
+        split=0.5 # 50% 재순환, 50% 배출
     )
     
     # --- 8. AC Output Handling (재순환 포함) ---
@@ -289,7 +187,7 @@ def create_VFA_sys(ins, outs):
         'S_AC',
         ins=S401-1,  # ED의 AC 출력
         outs=(recycle_ac, 'ac_for_MEE'),
-        split=0.9  # 10% 재순환, 90% MEE로 이동
+        split=0.5  # 10% 재순환, 90% MEE로 이동
     )
 
     # # --- 9. Multi-Effect Evaporator (MEE) ---
@@ -349,5 +247,6 @@ print("--- DC/AC Tank and ED Design Information ---")
 print(f"DC Tank Residence Time (tau): {dc_tank.tau} hr, Total Volume: {dc_tank.design_results['Total volume']:.4f} m³")
 print(f"AC Tank Residence Time (tau): {ac_tank.tau} hr, Total Volume: {ac_tank.design_results['Total volume']:.4f} m³")
 print(f"ED Required Membrane Area (A_m): {ed_unit.design_results['Membrane area']:.4f} m²")
-print(f"ED Adjusted Current Density (j): {ed_unit.j:.4f} A/m²")
+print(f"ED Adjusted Current (I): {ed_unit.I:.4f} A")
+print(f"ED Adjusted Current Density (I/A_m): {ed_unit.I/ed_unit.A_m:.4f} A")
 print(f"ED Power Consumption: {ed_unit.design_results['Power consumption']:.4f} W")

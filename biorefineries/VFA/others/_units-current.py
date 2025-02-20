@@ -255,19 +255,14 @@ class ED(bst.Unit):
     _N_ins = 2  # inf_dc, inf_ac
     _N_outs = 2  # eff_dc, eff_ac
 
-    def __init__(self, ID='', ins=None, outs=(), thermo=None, CE_dict=None, j=12.56,
-                 A_m=1.0, r_m=0.0702, z_T=1.0, t=24*3600, target_concentration=80000):
+    def __init__(self, ID='', ins=None, outs=(), thermo=None, CE_dict=None, I=0.020092,
+                 A_m=1.0, r_m=0.06368, z_T=1.0, t=24*3600, target_concentration=80000):
         super().__init__(ID, ins, outs, thermo=thermo)
         self.CE_dict = CE_dict or {
-            'AceticAcid': 0.685, 'PropionicAcid': 0.147, 'ButyricAcid': 0.052,
-            'ValericAcid': 0.0145, 'LacticAcid': 0.101, 'Water': 0.0
+            'AceticAcid': 0.164472, 'PropionicAcid': 0.082236, 'ButyricAcid': 0.059,
+            'ValericAcid': 0.063118, 'LacticAcid': 0.082236, 'Water': 0.0
         }
-        # self.CE_dict = CE_dict or {
-        #     'AceticAcid': 0.164472, 'PropionicAcid': 0.082236, 'ButyricAcid': 0.059,
-        #     'ValericAcid': 0.063118, 'LacticAcid': 0.082236, 'Water': 0.0
-        # }
-        # AceticAcid: C2, Pro/Lac: C3, Bu: C4, Val: C5
-        self.j = j  # 전류 밀도 (A/m²)
+        self.I = I  # 전류 (A)
         self.A_m = A_m  # 멤브레인 면적 (m²), 시스템 모듈에서 조정
         self.r_m = r_m  # 면적 저항 (Ω·m²)
         self.z_T = z_T  # 이온 전하수
@@ -302,8 +297,7 @@ class ED(bst.Unit):
             return
 
         # 전류량 계산
-        I = self.j * self.A_m
-        J_T_dict = self.calculate_flux(I) # mol/m²/s
+        J_T_dict = self.calculate_flux(self.I) # mol/m²/s
 
         for ion in self.CE_dict:
             # available_amount = inf_dc.imol[ion] # kmol/hr
@@ -318,6 +312,7 @@ class ED(bst.Unit):
             
         # eff_dc.imol['Water'] = inf_dc.imol['Water']
         # eff_ac.imol['Water'] = inf_ac.imol['Water']
+
         
     _units = {
         'Membrane area': 'm^2',
@@ -330,10 +325,39 @@ class ED(bst.Unit):
     def _design(self):
         D = self.design_results
         D['Membrane area'] = self.A_m
-        D['Total current'] = self.j * self.A_m
-        # 시스템 저항은 면적 저항 r_m를 멤브레인 면적으로 나눈 값으로 계산: R = r_m / A_m
-        D['System resistance'] = self.r_m / self.A_m  
-        # 전압은: V = I * R = (j * A_m) * (r_m / A_m) = j * r_m
-        D['System voltage'] = self.j * self.r_m  
-        # 전력 소비는: P = I * V = j^2 * r_m * A_m
-        D['Power consumption'] = self.j**2 * self.r_m * self.A_m
+        D['Total current'] = self.I
+        D['System resistance'] = self.r_m / self.A_m  # r_m = R * A_m
+        D['System voltage'] = D['Total current'] * D['System resistance']
+        D['Power consumption'] = D['System voltage'] * D['Total current']
+        
+    # def _cost(self):
+    #     D = self.design_results
+    #     # ED 유닛의 _design() 실행 후 'Membrane area'가 존재해야 함
+    #     if 'Membrane area' not in D:
+    #         raise ValueError("Design has not been computed. Call _design() before _cost().")
+        
+    #     self.baseline_purchase_costs['CEM'] = 2 * 100 * D['Membrane area']
+    #     self.baseline_purchase_costs['NF'] = 30 * D['Membrane area']
+    #     self.baseline_purchase_costs['Current Collector'] = 20 * D['Membrane area']
+    #     self.baseline_purchase_costs['Coating Solution'] = 0.057282 * D['Membrane area']
+    #     self.baseline_purchase_costs['Frames'] = 2 * D['Membrane area']
+    
+    #     D['Membrane cost'] = self.baseline_purchase_costs['CEM']
+    #     D['NF cost'] = self.baseline_purchase_costs['NF']
+    #     D['Current Collector cost'] = self.baseline_purchase_costs['Current Collector']
+    #     D['Coating cost'] = self.baseline_purchase_costs['Coating Solution']
+    #     D['Frame cost'] = self.baseline_purchase_costs['Frames']
+    
+    #     if 'Power consumption' in D:
+    #         self.power_utility.consumption = D['Power consumption'] / 1000
+    
+    # @property
+    # def cost_breakdown(self):
+    #     return {
+    #         'Membrane cost': self.design_results.get('Membrane cost', None),
+    #         'NF cost': self.design_results.get('NF cost', None),
+    #         'Current Collector cost': self.design_results.get('Current Collector cost', None),
+    #         'Coating cost': self.design_results.get('Coating cost', None),
+    #         'Frame cost': self.design_results.get('Frame cost', None),
+    #     }
+
