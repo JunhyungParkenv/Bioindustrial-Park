@@ -121,7 +121,6 @@ price = {
     'FattyAcid': 4.0,  # Fatty acid price ($/kg)
 }
 
-
 # =============================================================================
 # GWP Factors for Life Cycle Assessment (LCA)
 # =============================================================================
@@ -136,34 +135,13 @@ GWP_CFs = {
     'ValericAcid': -1.0,  # Co-product credit
     'HexanoicAcid': -1.2,  # Co-product credit
     'LacticAcid': 1.5,  # Lactic acid GWP
+    # ✅ 유닛 모듈에서 사용된 키와 일치하도록 수정
+    'CEM': 2.0879,               # Membrane (Cation Exchange Membrane)
+    'NF': 2.0879,                # Membrane (Neutral Filtration)
+    'Current Collector': 43.912, # Current Collector
+    # ✅ Electrolyte 관련 화합물 추가
+    'potassium_chloride': 0.44859,   # Potassium Chloride (KCl) GWP
+    'hydrogen_cyanide': 7.289,       # Hydrogen Cyanide (HCN) GWP
+    'ferrous_chloride': 0.22381,     # Ferrous Chloride (FeCl₂) GWP
+    'Frames': 0.44859,           # Support Frames (프레임)
 }
-# =============================================================================
-# Function to set GWP characterization factors for all streams in the system
-# =============================================================================
-def set_gwp_of_streams(system, indicator='GWP100'):
-    """
-    시스템 내의 모든 피드, 제품 및 각 유닛의 입출구 스트림에 대해
-    주어진 GWP characterization factor를 설정합니다.
-    
-    Parameters:
-        system : BioSTEAM 시스템 객체 (예: VFA_sys)
-        indicator : str, 기본값 'GWP100'
-                    환경 영향 지표 키
-    """
-    # 피드 스트림에 적용
-    for s in system.feeds:
-        if s.ID in GWP_CFs:
-            s.characterization_factors[indicator] = GWP_CFs[s.ID]
-    # 제품 스트림에 적용
-    for s in system.products:
-        if s.ID in GWP_CFs:
-            s.characterization_factors[indicator] = GWP_CFs[s.ID]
-    # 각 유닛의 입출구 스트림에 적용
-    for unit in system.units:
-        for s in unit.ins + unit.outs:
-            if s.ID in GWP_CFs:
-                s.characterization_factors[indicator] = GWP_CFs[s.ID]
-# =============================================================================
-# Load Process Settings
-# =============================================================================
-load_preferences_and_process_settings()

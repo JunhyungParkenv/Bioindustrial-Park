@@ -15,29 +15,7 @@ from biorefineries.VFA._process_settings import price, GWP_CFs, load_preferences
 from biorefineries.VFA._tea import create_vfa_tea
 from biorefineries.VFA._chemicals import chems
 from biorefineries.VFA._systems_VFA import VFA_sys, F
-# =============================================================================
-# GWP 값을 개별 스트림에 등록하는 함수 추가
-# =============================================================================
-def set_GWP_of_streams(indicator='GWP100'):
-    """
-    시스템 내 모든 스트림과 유닛(Materials)에 GWP 값을 설정
-    """
-    print("\n=== GWP 값 설정 ===")
-    for stream in sys.feeds + sys.products:
-        if stream.ID and stream.ID in GWP_CFs:
-            stream.characterization_factors[indicator] = GWP_CFs[stream.ID]
-            print(f"✅ GWP 등록 완료: {stream.ID} -> {GWP_CFs[stream.ID]}")
-        else:
-            print(f"⚠ GWP 값 없음: {stream.ID} (확인 필요)")
 
-    # ✅ 추가: Electrolyte(전해질) 화합물도 GWP 적용
-    electrolyte_chemicals = ['potassium_chloride', 'hydrogen_cyanide', 'ferrous_chloride']
-    for chem in electrolyte_chemicals:
-        if chem in GWP_CFs:
-            print(f"✅ GWP 등록 완료: {chem} -> {GWP_CFs[chem]}")
-
-
-#%%
 # =============================================================================
 # System and TEA Initialization
 # =============================================================================
@@ -46,9 +24,7 @@ load_preferences_and_process_settings()  # Flow 단위를 'kg/hr'로 설정
 sys = VFA_sys
 tea = create_vfa_tea(sys)
 sys.operating_hours = tea.operating_days * 24
-# GWP 값 등록
-set_GWP_of_streams()
-#%%
+
 # =============================================================================
 # Create Model and Add Sensitivity & Fixed Parameters
 # =============================================================================
@@ -60,12 +36,7 @@ def create_model():
         Metric('Capital Investment (CAPEX)', lambda: tea.CAPEX / 1e6, 'Million USD'),
         Metric('Operating Cost (OPEX)', lambda: tea.OPEX / 1e6, 'Million USD/yr'),
         Metric('Net Production Cost', lambda: tea.solve_price(F.stored_vfa), 'USD/kg'),
-        Metric('GWP (Material Acquisition)', 
-               lambda: sum(sys.get_material_impact(stream, key='GWP100') for stream in sys.feeds) * 1e3 / sys.operating_hours, 
-               'g CO2-eq/hr'),
-        Metric('GWP (Total)', 
-               lambda: sum(sys.get_material_impact(stream, key='GWP100') for stream in sys.feeds + sys.products) * 1e3 / sys.operating_hours, 
-               'g CO2-eq/hr'),
+        Metric('Global Warming Potential', lambda: sys.get_total_feeds_impact('GWP100') * 1e3 / sys.operating_hours, 'g CO2-eq/hr'),
         Metric('MPSP (Minimum Product Selling Price)', lambda: tea.solve_price(F.stored_vfa), 'USD/kg') # Unit Conversion
     ]
     
