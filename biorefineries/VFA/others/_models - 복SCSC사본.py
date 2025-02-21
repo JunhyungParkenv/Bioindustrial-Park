@@ -11,7 +11,7 @@ import pandas as pd
 from chaospy import distributions as shape
 import biosteam as bst
 from biosteam.evaluation import Model, Metric
-from biorefineries.VFA._process_settings import price, GWP_CFs, set_gwp_of_streams, load_preferences_and_process_settings
+from biorefineries.VFA._process_settings import price, GWP_CFs, load_preferences_and_process_settings
 from biorefineries.VFA._tea import create_vfa_tea
 from biorefineries.VFA._chemicals import chems
 from biorefineries.VFA._systems_VFA import VFA_sys, F
@@ -20,7 +20,7 @@ from biorefineries.VFA._systems_VFA import VFA_sys, F
 # System and TEA Initialization
 # =============================================================================
 load_preferences_and_process_settings()  # Flow 단위를 'kg/hr'로 설정
-set_gwp_of_streams(VFA_sys, indicator='GWP100')
+
 # 시스템 및 TEA 초기화 (시스템 모듈에서 고정 파라미터들도 이미 설정됨)
 sys = VFA_sys
 tea = create_vfa_tea(sys)

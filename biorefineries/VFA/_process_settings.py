@@ -137,7 +137,32 @@ GWP_CFs = {
     'HexanoicAcid': -1.2,  # Co-product credit
     'LacticAcid': 1.5,  # Lactic acid GWP
 }
-
+# =============================================================================
+# Function to set GWP characterization factors for all streams in the system
+# =============================================================================
+def set_gwp_of_streams(system, indicator='GWP100'):
+    """
+    시스템 내의 모든 피드, 제품 및 각 유닛의 입출구 스트림에 대해
+    주어진 GWP characterization factor를 설정합니다.
+    
+    Parameters:
+        system : BioSTEAM 시스템 객체 (예: VFA_sys)
+        indicator : str, 기본값 'GWP100'
+                    환경 영향 지표 키
+    """
+    # 피드 스트림에 적용
+    for s in system.feeds:
+        if s.ID in GWP_CFs:
+            s.characterization_factors[indicator] = GWP_CFs[s.ID]
+    # 제품 스트림에 적용
+    for s in system.products:
+        if s.ID in GWP_CFs:
+            s.characterization_factors[indicator] = GWP_CFs[s.ID]
+    # 각 유닛의 입출구 스트림에 적용
+    for unit in system.units:
+        for s in unit.ins + unit.outs:
+            if s.ID in GWP_CFs:
+                s.characterization_factors[indicator] = GWP_CFs[s.ID]
 # =============================================================================
 # Load Process Settings
 # =============================================================================
