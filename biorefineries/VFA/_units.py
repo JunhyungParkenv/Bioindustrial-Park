@@ -64,10 +64,15 @@ class UASB(Unit):
         self.P = P
         self.cofermentation_rxns = ParallelRxn([
             # Reaction definition                                          Reactant    Conversion
-            Rxn('Glucose -> 0.4243 LacticAcid + 0.0113 ValericAcid + 0.0674 ButyricAcid + 0.0158 PropionicAcid + 0.1755 AceticAcid', 
+            Rxn('Glucose -> 0.85 LacticAcid + 0.02 ValericAcid + 0.14 ButyricAcid + 0.04 PropionicAcid + 0.54 AceticAcid', 
                 'Glucose', 
                 1.0),
         ])
+            # Reaction definition                                          Reactant    Conversion
+        #     Rxn('Glucose -> 0.4243 LacticAcid + 0.0113 ValericAcid + 0.0674 ButyricAcid + 0.0158 PropionicAcid + 0.1755 AceticAcid', 
+        #         'Glucose', 
+        #         1.0),
+        # ])
         # Day 40
         #     Rxn('Glucose -> 0.0519 LacticAcid + 0.01 ValericAcid + 0.0632 ButyricAcid + 0.0119 PropionicAcid + 0.141 AceticAcid', 
         #         'Glucose', 
@@ -259,8 +264,8 @@ class ED(bst.Unit):
                  A_m=1.0, r_m=0.0702, z_T=1.0, t=24*3600, target_concentration=80000):
         super().__init__(ID, ins, outs, thermo=thermo)
         self.CE_dict = CE_dict or {
-            'AceticAcid': 0.685, 'PropionicAcid': 0.147, 'ButyricAcid': 0.052,
-            'ValericAcid': 0.0145, 'LacticAcid': 0.101, 'Water': 0.0
+            'AceticAcid': 0.686, 'PropionicAcid': 0.148, 'ButyricAcid': 0.053,
+            'ValericAcid': 0.0146, 'LacticAcid': 0.102, 'Water': 0.0
         }
         # self.CE_dict = CE_dict or {
         #     'AceticAcid': 0.164472, 'PropionicAcid': 0.082236, 'ButyricAcid': 0.059,

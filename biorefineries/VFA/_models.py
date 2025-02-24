@@ -11,32 +11,10 @@ import pandas as pd
 from chaospy import distributions as shape
 import biosteam as bst
 from biosteam.evaluation import Model, Metric
-from biorefineries.VFA._process_settings import price, GWP_CFs, load_preferences_and_process_settings
+from biorefineries.VFA._process_settings import price, GWP_CFs, FEC_factors, load_preferences_and_process_settings
 from biorefineries.VFA._tea import create_vfa_tea
 from biorefineries.VFA._chemicals import chems
 from biorefineries.VFA._systems_VFA import VFA_sys, F
-# =============================================================================
-# GWP 값을 개별 스트림에 등록하는 함수 추가
-# =============================================================================
-def set_GWP_of_streams(indicator='GWP100'):
-    """
-    시스템 내 모든 스트림과 유닛(Materials)에 GWP 값을 설정
-    """
-    print("\n=== GWP 값 설정 ===")
-    for stream in sys.feeds + sys.products:
-        if stream.ID and stream.ID in GWP_CFs:
-            stream.characterization_factors[indicator] = GWP_CFs[stream.ID]
-            print(f"✅ GWP 등록 완료: {stream.ID} -> {GWP_CFs[stream.ID]}")
-        else:
-            print(f"⚠ GWP 값 없음: {stream.ID} (확인 필요)")
-
-    # ✅ 추가: Electrolyte(전해질) 화합물도 GWP 적용
-    electrolyte_chemicals = ['potassium_chloride', 'hydrogen_cyanide', 'ferrous_chloride']
-    for chem in electrolyte_chemicals:
-        if chem in GWP_CFs:
-            print(f"✅ GWP 등록 완료: {chem} -> {GWP_CFs[chem]}")
-
-
 #%%
 # =============================================================================
 # System and TEA Initialization
@@ -46,8 +24,107 @@ load_preferences_and_process_settings()  # Flow 단위를 'kg/hr'로 설정
 sys = VFA_sys
 tea = create_vfa_tea(sys)
 sys.operating_hours = tea.operating_days * 24
-# GWP 값 등록
-set_GWP_of_streams()
+
+# 모든 스트림을 모읍니다.
+all_streams = list(set(sys.feeds + sys.products))
+for unit in sys.units:
+    all_streams.extend(unit.ins + unit.outs)
+# 중복 제거
+all_streams = list(set(all_streams))
+
+# 모든 스트림에 대해 GWP CF 설정
+for stream in all_streams:
+    if stream.ID in GWP_CFs:
+        stream.set_CF('GWP100', GWP_CFs[stream.ID], basis='kg', units='kg CO2e')
+#%% 
+# 내부 함수: 모든 스트림의 GWP를 계산
+def calculate_stream_GWP(stream_list, indicator='GWP100'):
+    total = 0.0
+    for stream in stream_list:
+        if hasattr(stream, 'F_mass'):
+            cf = stream.get_CF(indicator) or 0.0
+            total += stream.F_mass * cf
+    return total
+
+# 내부 함수: 멤브레인 등 장비의 내재 GWP 계산 (CEM과 NF 모두 포함)
+def calculate_equipment_GWP(F, GWP_CFs, lifetime_years=10):
+    total_equipment_GWP = 0.0
+    # CEM와 NF의 면적을 각각 확인합니다.
+    # 만약 F.S401에 A_m_CEM, A_m_NF가 없다면, 전체 면적 A_m의 50%씩 사용하도록 합니다.
+    for key in ['CEM', 'NF']:
+        area_attr = f"A_m_{key}"
+        if hasattr(F.S401, area_attr):
+            area = getattr(F.S401, area_attr)
+        else:
+            area = F.S401.A_m * 0.5  # 기본값: 전체 면적의 50%
+        cf = GWP_CFs.get(key, 0.0)  # kg CO2-eq/m²
+        total_equipment_GWP += area * cf
+    lifetime_hours = lifetime_years * 365 * 24
+    return total_equipment_GWP / lifetime_hours  # kg CO2-eq/hr
+
+# 최종 전체 GWP를 계산하는 함수 (스트림 + 장비)
+def calculate_total_GWP(all_streams, sys, F, GWP_CFs, membrane_lifetime_years=10):
+    stream_GWP = calculate_stream_GWP(all_streams, 'GWP100')
+    equipment_GWP = calculate_equipment_GWP(F, GWP_CFs, lifetime_years=membrane_lifetime_years)
+    total = stream_GWP + equipment_GWP
+    # 최종 단위를 g CO2-eq/hr로 변환 및 시스템 운영 시간으로 나누기
+    return total * 1e3 / sys.operating_hours
+#%%
+# --- FEC 계산 함수들 ---
+
+# 전기 FEC: 시스템의 연간 전기 사용량(kWh/yr)을 MJ로 변환하고 FEC factor를 곱함
+def calculate_electricity_FEC(sys, FEC_factors):
+    # 1 kWh = 3.6 MJ
+    consumption_MJ_per_year = sys.get_electricity_consumption() * 3.6
+    # FEC in kg oil eq per year
+    return consumption_MJ_per_year * FEC_factors['electricity']
+
+# 스트림 기반 FEC 계산 (필요 시; 현재는 주로 전기 및 장비 FEC를 고려)
+def calculate_stream_FEC(stream_list, indicator='FEC'):
+    total = 0.0
+    for stream in stream_list:
+        if hasattr(stream, 'F_mass'):
+            cf = stream.get_CF(indicator) or 0.0
+            total += stream.F_mass * cf
+    return total
+
+# 장비(멤브레인 등) FEC 계산  
+def calculate_equipment_FEC(F, FEC_factors, lifetime_years=10, 
+                            membrane_mass_factor=5.0,  # kg membrane per m² (가정)
+                            electrode_fraction=0.1,    # 전체 membrane mass의 10%
+                            current_collector_fraction=0.05):  # 전체 membrane mass의 5%
+    # F.S401는 ED 유닛 (멤브레인 unit)으로 가정
+    # A_m_CEM, A_m_NF가 없다면 전체 면적 A_m의 50%씩 할당
+    if hasattr(F.S401, 'A_m_CEM'):
+        A_m_CEM = F.S401.A_m_CEM
+    else:
+        A_m_CEM = F.S401.A_m * 0.5
+    if hasattr(F.S401, 'A_m_NF'):
+        A_m_NF = F.S401.A_m_NF
+    else:
+        A_m_NF = F.S401.A_m * 0.5
+    # membrane mass (kg) = area (m²) * membrane_mass_factor (kg/m²)
+    mass_membrane = (A_m_CEM + A_m_NF) * membrane_mass_factor
+    # Electrode and Current Collector mass assumptions:
+    mass_electrode = mass_membrane * electrode_fraction
+    mass_cc = mass_membrane * current_collector_fraction
+    # FEC contributions (kg oil eq per year)
+    lifetime_hours = lifetime_years * 365 * 24
+    FEC_membrane = mass_membrane * FEC_factors['Membrane'] / lifetime_hours
+    FEC_electrode = mass_electrode * FEC_factors['Electrode'] / lifetime_hours
+    FEC_cc = mass_cc * FEC_factors['Current Collector'] / lifetime_hours
+    return FEC_membrane + FEC_electrode + FEC_cc
+
+# 최종 전체 FEC 계산 함수: 전기 FEC + (스트림 FEC, 필요 시) + 장비 FEC  
+def calculate_total_FEC(sys, all_streams, F, FEC_factors, lifetime_years=10, 
+                        membrane_mass_factor=5.0, electrode_fraction=0.1, current_collector_fraction=0.05):
+    elec_FEC = calculate_electricity_FEC(sys, FEC_factors)
+    # stream_FEC = calculate_stream_FEC(all_streams, 'FEC')  # 사용하려면, 해당 CF가 스트림에 설정되어야 함
+    equip_FEC = calculate_equipment_FEC(F, FEC_factors, lifetime_years, membrane_mass_factor, electrode_fraction, current_collector_fraction)
+    total_FEC_yearly = elec_FEC + equip_FEC
+    # 시간당 FEC (kg oil eq/hr)
+    return total_FEC_yearly / sys.operating_hours
+
 #%%
 # =============================================================================
 # Create Model and Add Sensitivity & Fixed Parameters
@@ -59,13 +136,14 @@ def create_model():
         Metric('Electricity Consumption', lambda: sys.get_electricity_consumption(), 'kWh/yr'),
         Metric('Capital Investment (CAPEX)', lambda: tea.CAPEX / 1e6, 'Million USD'),
         Metric('Operating Cost (OPEX)', lambda: tea.OPEX / 1e6, 'Million USD/yr'),
-        Metric('Net Production Cost', lambda: tea.solve_price(F.stored_vfa), 'USD/kg'),
-        Metric('GWP (Material Acquisition)', 
-               lambda: sum(sys.get_material_impact(stream, key='GWP100') for stream in sys.feeds) * 1e3 / sys.operating_hours, 
-               'g CO2-eq/hr'),
+        # Metric('Net Production Cost', lambda: tea.solve_price(F.stored_vfa), 'USD/kg'),
         Metric('GWP (Total)', 
-               lambda: sum(sys.get_material_impact(stream, key='GWP100') for stream in sys.feeds + sys.products) * 1e3 / sys.operating_hours, 
+               lambda: calculate_total_GWP(all_streams, sys, F, GWP_CFs, membrane_lifetime_years=10),
                'g CO2-eq/hr'),
+        # 새로 추가: FEC Metric (총 Fossil Energy Consumption)
+        Metric('FEC (Total)', 
+               lambda: calculate_total_FEC(sys, all_streams, F, FEC_factors, lifetime_years=10),
+               'kg oil eq/hr'),
         Metric('MPSP (Minimum Product Selling Price)', lambda: tea.solve_price(F.stored_vfa), 'USD/kg') # Unit Conversion
     ]
     
@@ -99,7 +177,6 @@ def create_model():
                      distribution=shape.Triangle(0.8 * F.T302.tau, F.T302.tau, 1.2 * F.T302.tau))
     def set_AC_tank_tau(x):
         F.T302.tau = x
-
 
     return model
 

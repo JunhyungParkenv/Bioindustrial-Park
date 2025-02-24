@@ -10,7 +10,7 @@ import biosteam as bst
 import qsdsan as qs
 from biorefineries.VFA._chemicals import chems
 
-__all__ = ('load_preferences_and_process_settings', 'add_utility_agent', 'price', 'GWP_CFs')
+__all__ = ('load_preferences_and_process_settings', 'add_utility_agent', 'price', 'GWP_CFs', 'FEC_factors')
 
 
 # =============================================================================
@@ -19,7 +19,7 @@ __all__ = ('load_preferences_and_process_settings', 'add_utility_agent', 'price'
 
 def load_preferences_and_process_settings(T='K', flow_units='kg/hr', 
                                           N=4, P_units='1 atm', CE=541.7, 
-                                          indicator='GWP', electricity_price=0.07, 
+                                          indicator='GWP100', electricity_price=0.07, 
                                           electricity_EI=0.48):
     """
     Load preferences and process settings for the VFA recovery system.
@@ -109,13 +109,10 @@ def add_utility_agent():
 price = {
     'water': 0.0002,  # Water price ($/kg)
     'electricity': 0.07,  # Electricity price ($/kWh)
-    'H2': 1.07,  # Hydrogen price ($/kg)
-    'NaOH': 0.86,  # Sodium hydroxide price ($/kg)
     'AceticAcid': 1.5,  # Acetic acid price ($/kg)
     'PropionicAcid': 2.0,  # Propionic acid price ($/kg)
     'ButyricAcid': 2.5,  # Butyric acid price ($/kg)
     'ValericAcid': 3.0,  # Valeric acid price ($/kg)
-    'HexanoicAcid': 3.5,  # Hexanoic acid price ($/kg)
     'LacticAcid': 1.8,  # Lactic acid price ($/kg)
     'AminoAcid': 5.0,  # Amino acid price ($/kg)
     'FattyAcid': 4.0,  # Fatty acid price ($/kg)
@@ -127,21 +124,24 @@ price = {
 GWP_CFs = {
     'water': 0.0002,  # Water GWP (kg CO2-eq/kg)
     'electricity': 0.48,  # Electricity GWP (kg CO2-eq/kWh)
-    'H2': 1.6,  # Hydrogen GWP
-    'NaOH': 2.11,  # Sodium hydroxide GWP
-    'AceticAcid': -0.5,  # Co-product credit
-    'PropionicAcid': -0.7,  # Co-product credit
-    'ButyricAcid': -0.8,  # Co-product credit
-    'ValericAcid': -1.0,  # Co-product credit
-    'HexanoicAcid': -1.2,  # Co-product credit
-    'LacticAcid': 1.5,  # Lactic acid GWP
-    # ✅ 유닛 모듈에서 사용된 키와 일치하도록 수정
-    'CEM': 2.0879,               # Membrane (Cation Exchange Membrane)
-    'NF': 2.0879,                # Membrane (Neutral Filtration)
-    'Current Collector': 43.912, # Current Collector
-    # ✅ Electrolyte 관련 화합물 추가
-    'potassium_chloride': 0.44859,   # Potassium Chloride (KCl) GWP
-    'hydrogen_cyanide': 7.289,       # Hydrogen Cyanide (HCN) GWP
-    'ferrous_chloride': 0.22381,     # Ferrous Chloride (FeCl₂) GWP
-    'Frames': 0.44859,           # Support Frames (프레임)
+    # 'AceticAcid': -0.5,  # Co-product credit (kg CO2-eq/kg)
+    # 'PropionicAcid': -0.7,  # Co-product credit (kg CO2-eq/kg)
+    # 'ButyricAcid': -0.8,  # Co-product credit (kg CO2-eq/kg)
+    # 'ValericAcid': -1.0,  # Co-product credit (kg CO2-eq/kg)
+    # 'LacticAcid': 1.5,  # Lactic acid GWP (kg CO2-eq/kg)
+    'CEM': 2.0879,               # Membrane (Cation Exchange Membrane) (kg CO2-eq/kg)
+    'NF': 2.0879,                # Membrane (Neutral Filtration) (kg CO2-eq/kg)
+    'Current Collector': 43.912, # Current Collector (kg CO2-eq/kg)
+    'Frames': 0.44859,           # Support Frames (kg CO2-eq/kg)
+}
+
+# =============================================================================
+# # FEC Impact Factors (kg oil eq per unit)
+# =============================================================================
+FEC_factors = {
+    'electricity': 0.037857143,  # kg oil eq per MJ
+    'NaCl': 0.073453,            # kg oil eq per kg
+    'Membrane': 1.7775,          # kg oil eq per kg
+    'Electrode': 0.49897,        # kg oil eq per kg
+    'Current Collector': 11.399, # kg oil eq per kg
 }
