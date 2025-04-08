@@ -345,16 +345,16 @@ def create_model():
     def set_ED_j(x):
         F.S401.j = x
         
-    # @model.parameter(name='ED Current',
-    #                  element=F.S401,
-    #                  kind='coupled',
-    #                  units='A',
-    #                  baseline=F.S401.j * F.S401.A_m,
-    #                  distribution=shape.Triangle(0.8 * F.S401.j * F.S401.A_m, 
-    #                                              F.S401.j * F.S401.A_m, 
-    #                                              1.2 * F.S401.j * F.S401.A_m))
-    # def set_ED_I(x):
-    #     F.S401.j = x / F.S401.A_m
+    @model.parameter(name='ED Current',
+                      element=F.S401,
+                      kind='coupled',
+                      units='A',
+                      baseline=F.S401.j * F.S401.A_m,
+                      distribution=shape.Triangle(0.8 * F.S401.j * F.S401.A_m, 
+                                                  F.S401.j * F.S401.A_m, 
+                                                  1.2 * F.S401.j * F.S401.A_m))
+    def set_ED_I(x):
+        F.S401.j = x / F.S401.A_m
 
     # @model.parameter(name='AC Tank Residence Time',
     #                  element=F.T302,  # T302가 실제 AC 탱크 객체입니다.
@@ -366,8 +366,8 @@ def create_model():
     #     F.T302.tau = x
     
     # ────── 민감도 파라미터: ED Current Efficiency (CE) ──────
-    # F.S401 객체에 CE 속성이 없으면 기본값 0.8 (80% 효율)으로 설정
-    baseline_CE = getattr(F.S401, 'CE', 0.8)
+    # F.S401 객체에 CE 속성이 없으면 기본값 1.0 (80% 효율)으로 설정
+    baseline_CE = getattr(F.S401, 'CE', 1.0)
     
     @model.parameter(name='ED Current Efficiency',
                      element=F.S401,
