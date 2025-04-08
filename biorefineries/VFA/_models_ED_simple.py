@@ -18,7 +18,7 @@ VFA_sys.simulate()
 ed_unit = bst.main_flowsheet.unit['S401']
 
 # 전류 밀도 범위 설정 (1 A/m² ~ 50 A/m²)
-j_values = np.linspace(1, 20, 10)  # 1~50 A/m² 사이에서 20개 샘플링
+j_values = np.linspace(10, 500, 100)  # 1~50 A/m² 사이에서 20개 샘플링
 A_m_values = []
 
 for j in j_values:
@@ -41,13 +41,13 @@ plt.legend()
 plt.show()
 #%%
 # Membrane Area vs. AC Tank Volume 분석
-A_m_values = np.linspace(1, 50, 10)  # 1~50 m² 사이에서 10개 샘플링
+A_m_values = np.linspace(1, 20, 12)  # 1~50 m² 사이에서 10개 샘플링
 ac_tank_volumes = []
 
 for A_m in A_m_values:
     ed_unit.A_m = A_m  # 멤브레인 면적 변경
     VFA_sys.simulate()  # 시스템 재시뮬레이션
-    ac_tank = bst.main_flowsheet.unit['ac_tank']
+    ac_tank = bst.main_flowsheet.unit['T302']
     ac_tank_volumes.append(ac_tank.design_results['Total volume'])  # 업데이트된 AC 탱크 부피 저장
     print(f"A_m = {A_m:.2f} m² → AC Tank Volume = {ac_tank.design_results['Total volume']:.4f} m³")
 
@@ -89,7 +89,7 @@ plt.show()
 #%%
 # Contour Plot: Current Density (X) vs. AC Tank Volume (Y) with Membrane Area (Color)
 # 전류 밀도와 AC 탱크 부피의 범위를 조정하여 더 조밀하게 샘플링
-j_values = np.linspace(1, 15, 15)  # 1~10 A/m² 사이에서 15개 샘플링
+j_values = np.linspace(10, 500, 100)  # 1~10 A/m² 사이에서 15개 샘플링
 ac_tank_volumes = np.linspace(0.01, 500, 15)  # 0.01~1 m³ 사이에서 15개 샘플링
 
 J, AC_Vol = np.meshgrid(j_values, ac_tank_volumes)
@@ -115,7 +115,7 @@ plt.grid(True)
 plt.show()
 #%%
 # 1. 전류 밀도(A/m²) vs. 전력 소비량(W)
-j_values = np.linspace(1, 20, 10)  
+j_values = np.linspace(10, 500, 100)  
 power_consumption = []
 
 for j in j_values:
@@ -134,7 +134,7 @@ plt.legend()
 plt.show()
 #%%
 # 2. 멤브레인 면적(m²) vs. VFA 처리량(kg/hr)
-A_m_values = np.linspace(1, 50, 10)  
+A_m_values = np.linspace(10, 500, 100)  
 VFA_output_mass = []
 
 for A_m in A_m_values:
@@ -155,7 +155,7 @@ plt.legend()
 plt.show()
 #%%
 # 3. AC Tank 체류 시간(hr) vs. 목표 농도(g/L) 변화
-ac_tau_values = np.linspace(1, 24, 10)
+ac_tau_values = np.linspace(10, 500, 100)
 ac_concentration = []
 
 for tau in ac_tau_values:

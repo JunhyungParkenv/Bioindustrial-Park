@@ -16,6 +16,7 @@ from biosteam.units.decorators import cost
 import thermosteam as tmo
 import biosteam as bst
 import numpy as np
+# from biorefineries.VFA._process_settings import GWP_CFs, FEC_factors
 
 Rxn = tmo.reaction.Reaction
 ParallelRxn = tmo.reaction.ParallelReaction
@@ -251,27 +252,42 @@ class AC_Tank(MixTank):
 # Constants  
 F = 96485.3  # Faraday constant (C/mol)  
 
-@cost('Membrane area', 'CEM', cost=100, S=1, CE=567.3, n=1, BM=1, lifetime=5)
-@cost('Membrane area', 'NF', cost=30, S=1, CE=567.3, n=1, BM=1, lifetime=5)
-@cost('Membrane area', 'Current Collector', cost=20, S=1, CE=567.3, n=1, BM=1, lifetime=10)
-@cost('Membrane area', 'Coating Solution', cost=0.057282, S=1, CE=567.3, n=1, BM=1)
+@cost('Membrane area', 'CEM', cost=100, S=1, CE=567.3, n=1, BM=1, lifetime=5) # Jayne
+@cost('Membrane area', 'NF', cost=30, S=1, CE=567.3, n=1, BM=1, lifetime=5) # Wangsuk (diff NF)
+@cost('Membrane area', 'Current Collector', cost=20 * 3/4, S=1, CE=567.3, n=1, BM=1, lifetime=10) # Nayeong, Ti mesh
+@cost('Membrane area', 'Electrode', cost=5 * 3/4, S=1, CE=567.3, n=1, BM=1, lifetime=10) # Nayeong, Carbon Cloth
 @cost('Membrane area', 'Frames', cost=2, S=1, CE=567.3, n=1, BM=1)
+@cost('Membrane area', 'Coating Solution', cost=0.057282, S=1, CE=567.3, n=1, BM=1)
+@cost('Membrane area', 'Fe(CN)', cost=0.00017625, S=1, CE=567.3, n=1, BM=1)
 class ED(bst.Unit):
     _N_ins = 2  # inf_dc, inf_ac
     _N_outs = 2  # eff_dc, eff_ac
-
-    def __init__(self, ID='', ins=None, outs=(), thermo=None, CE_dict=None, j=12.56,
-                 A_m=1.0, r_m=0.0702, z_T=1.0, t=24*3600, target_concentration=80000):
+# F.S401.outs[1]: VFAs = 789.41 mM (r_m=0.0635), Experiments: VFAs = 75 mM (r_m=0.00603) inverse with VFAs Concentration
+    def __init__(self, ID='', ins=None, outs=(), thermo=None, CE_dict=None, j=12.5,
+                 A_m=0.0016, r_m=0.004, z_T=1.0, t=24*3600, target_concentration=80000):
         super().__init__(ID, ins, outs, thermo=thermo)
-        self.CE_dict = CE_dict or {
-            'AceticAcid': 0.686, 'PropionicAcid': 0.148, 'ButyricAcid': 0.053,
-            'ValericAcid': 0.0146, 'LacticAcid': 0.102, 'Water': 0.0
-        }
+        
+        # CEs = 1
+        # self.CE_dict = CE_dict or {
+        #     'AceticAcid': 0.686, 'PropionicAcid': 0.148, 'ButyricAcid': 0.053,
+        #     'ValericAcid': 0.0146, 'LacticAcid': 0.102, 'Water': 0.0
+        # }
+        # # 예전
         # self.CE_dict = CE_dict or {
         #     'AceticAcid': 0.164472, 'PropionicAcid': 0.082236, 'ButyricAcid': 0.059,
         #     'ValericAcid': 0.063118, 'LacticAcid': 0.082236, 'Water': 0.0
         # }
+        # 실험 (C6=0.000677), ValericAcid는 없으므로 가정
+        # self.CE_dict = CE_dict or {
+        #     'AceticAcid': 0.29, 'PropionicAcid': 0.11, 'ButyricAcid': 0.045,
+        #     'ValericAcid': 0.03, 'LacticAcid': 0.079, 'Water': 0.0
+        # }
+        self.CE_dict = CE_dict or {
+            'AceticAcid': 0.3, 'PropionicAcid': 0.15, 'ButyricAcid': 0.045,
+            'ValericAcid': 0.03, 'LacticAcid': 0.079, 'Water': 0.0
+        }
         # AceticAcid: C2, Pro/Lac: C3, Bu: C4, Val: C5
+        # 실제 실험에서는 0.798 V - 0.02 A
         self.j = j  # 전류 밀도 (A/m²)
         self.A_m = A_m  # 멤브레인 면적 (m²), 시스템 모듈에서 조정
         self.r_m = r_m  # 면적 저항 (Ω·m²)
@@ -293,6 +309,30 @@ class ED(bst.Unit):
         new_A_m = target_mol_transfer / (3600 * total_flux) # m2
 
         return max(new_A_m, 0.5)  # 최소 1.0 m² 보장
+    # def calculate_membrane_area(self, total_vfa_mol, total_flux, Q):
+    #     """목표 농도를 기준으로 Membrane Area 계산
+    #     - total_vfa_mol: ED 투입 후 AC 탱크에서 사용할 수 있는 총 VFA 몰수 (mol/hr)
+    #     - total_flux: ED에서 계산된 총 플럭스 (mol/m²/s)
+    #     - Q: ED 후 AC 탱크 유량 (m³/hr)
+    #     """
+    #     if total_flux == 0:
+    #         return self.A_m  # 플럭스가 0이면 기존 면적 유지
+    
+    #     # 목표 농도에 맞춰야 하는 총 몰 수 계산 (목표 농도 g/L를 mol/hr로 전환)
+    #     target_mol_transfer = (self.target_concentration * 1000 / 102.13) * Q  # (mol/hr)
+    
+    #     # 목표 농도에 도달하기 위해 이론상 필요한 멤브레인 면적 (m²)
+    #     new_A_m_target = target_mol_transfer / (3600 * total_flux)
+    
+    #     # 실제 공급 가능한 최대 멤브레인 면적: 투입된 총 VFA 몰수 기준
+    #     new_A_m_max_possible = total_vfa_mol / (3600 * total_flux)
+    
+    #     # 실제 달성 가능한 멤브레인 면적은 두 값 중 더 작은 값으로 제한
+    #     new_A_m = min(new_A_m_target, new_A_m_max_possible)
+    
+    #     # 최소 면적 보장 (예: 0.5 m²)
+    #     return max(new_A_m, 0.5)
+
 
     def _run(self):
         """ED 유닛 실행 (A_m은 시스템에서 조정)"""
@@ -342,3 +382,60 @@ class ED(bst.Unit):
         D['System voltage'] = self.j * self.r_m  
         # 전력 소비는: P = I * V = j^2 * r_m * A_m
         D['Power consumption'] = self.j**2 * self.r_m * self.A_m
+        
+    def _cost(self):
+        # 기존 데코레이터에 의한 구매비용(기본 cost items) 계산
+        self._decorated_cost()  
+        # 설계 결과의 전력 소비(Power consumption) 값을 가져와 전기 유틸리티 비용 업데이트
+        D = self.design_results
+        self.power_utility(D['Power consumption']/1000)
+    # -------------------------------
+    # ED Breakdown 계산 메서드들
+    # -------------------------------
+    # def get_breakdown_GWP(self, lifetime_years=10):
+    #     """ED 부품별 GWP breakdown (kg CO2-eq/hr)"""
+    #     breakdown = {}
+    #     lifetime_hours = lifetime_years * 365 * 24
+    #     for key in ['CEM', 'NF', 'Current Collector', 'Frames']:
+    #         area_attr = f"A_m_{key}"
+    #         if hasattr(self, area_attr):
+    #             area = getattr(self, area_attr)
+    #         else:
+    #             # CEM, NF는 전체 A_m의 50%씩, 그 외는 0로 가정
+    #             area = self.A_m * 0.5 if key in ['CEM', 'NF'] else 0.0
+    #         cf = GWP_CFs.get(key, 0.0)
+    #         breakdown[key] = area * cf / lifetime_hours
+    #     return breakdown
+
+    # def get_breakdown_FEC(self, lifetime_years=10, membrane_mass_factor=5.0,
+    #                        electrode_fraction=0.1, current_collector_fraction=0.05):
+    #     """ED 부품별 FEC breakdown (kg oil eq/hr)"""
+    #     if hasattr(self, 'A_m_CEM'):
+    #         A_m_CEM = self.A_m_CEM
+    #     else:
+    #         A_m_CEM = self.A_m * 0.5
+    #     if hasattr(self, 'A_m_NF'):
+    #         A_m_NF = self.A_m_NF
+    #     else:
+    #         A_m_NF = self.A_m * 0.5
+    #     mass_membrane = (A_m_CEM + A_m_NF) * membrane_mass_factor
+    #     mass_electrode = mass_membrane * electrode_fraction
+    #     mass_cc = mass_membrane * current_collector_fraction
+    #     lifetime_hours = lifetime_years * 365 * 24
+    #     breakdown = {}
+    #     breakdown['Membrane'] = mass_membrane * FEC_factors['Membrane'] / lifetime_hours
+    #     breakdown['Electrode'] = mass_electrode * FEC_factors['Electrode'] / lifetime_hours
+    #     breakdown['Current Collector'] = mass_cc * FEC_factors['Current Collector'] / lifetime_hours
+    #     return breakdown
+
+    # def get_breakdown_CAPEX(self):
+    #     """ED 부품별 CAPEX breakdown (USD) – baseline_purchase_costs 이용 (예시)"""
+    #     breakdown = {}
+    #     for key in ['CEM', 'NF', 'Current Collector', 'Coating Solution', 'Frames']:
+    #         breakdown[key] = self.baseline_purchase_costs.get(key, 0)
+    #     return breakdown
+
+    # def get_breakdown_OPEX(self):
+    #     """ED 부품별 OPEX breakdown (USD/yr) – CAPEX의 일정 비율(예: 5%)로 계산"""
+    #     capex_breakdown = self.get_breakdown_CAPEX()
+    #     return {key: 0.05 * cost for key, cost in capex_breakdown.items()}

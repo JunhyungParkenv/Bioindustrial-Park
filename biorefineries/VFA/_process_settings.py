@@ -102,7 +102,6 @@ def add_utility_agent():
 
     bst.HeatUtility.cooling_agents.append(LTF)
 
-
 # =============================================================================
 # Prices for Techno-Economic Analysis (TEA)
 # =============================================================================
@@ -121,27 +120,49 @@ price = {
 # =============================================================================
 # GWP Factors for Life Cycle Assessment (LCA)
 # =============================================================================
+# IEM (CEM) Membrane, Nanofiltration Membrane, Ti mesh Current Collector, Carbon Cloth electrode
+# Need to find NF (Polyamide-based), Frames (steel)
+# GWP_CFs = {
+#     'electricity': 0.48,  # Electricity GWP (kg CO2-eq/MJ) (1 kWh = 3.6 MJ)
+#     'CEM': 2.0879,               # Membrane (Cation Exchange Membrane) (kg CO2-eq/kg) # Membrane Density=1200 kg/m3, Thickness=0.001m, 1.2kg/m2
+#     'NF': 0.31,                # Membrane (NanoFiltration) (kg CO2-eq/kg) # paper ref. 0.12 g/m2
+#     'Current Collector': 43.912, # Current Collector (kg CO2-eq/kg) # 4.5 g/cm3, 0.0001m -> 0.02 kg/m2
+#     'Electrode' : 2.6292,         # Electrdoe (kg CO2-eq/kg) # 0.2 kg/m2
+#     'Fe(CN)': 7.51281,           # Fe(CN) (kg CO2-eq/kg)
+#     'Frames': 1.97,           # Support Frames (kg CO2-eq/kg) 1.97 kg CO2/kg * 50 kg/m2
+# }
 GWP_CFs = {
-    'water': 0.0002,  # Water GWP (kg CO2-eq/kg)
-    'electricity': 0.48,  # Electricity GWP (kg CO2-eq/kWh)
-    # 'AceticAcid': -0.5,  # Co-product credit (kg CO2-eq/kg)
-    # 'PropionicAcid': -0.7,  # Co-product credit (kg CO2-eq/kg)
-    # 'ButyricAcid': -0.8,  # Co-product credit (kg CO2-eq/kg)
-    # 'ValericAcid': -1.0,  # Co-product credit (kg CO2-eq/kg)
-    # 'LacticAcid': 1.5,  # Lactic acid GWP (kg CO2-eq/kg)
-    'CEM': 2.0879,               # Membrane (Cation Exchange Membrane) (kg CO2-eq/kg)
-    'NF': 2.0879,                # Membrane (Neutral Filtration) (kg CO2-eq/kg)
-    'Current Collector': 43.912, # Current Collector (kg CO2-eq/kg)
-    'Frames': 0.44859,           # Support Frames (kg CO2-eq/kg)
+    'electricity': 0.449,  # Electricity (kg CO2-eq/kWh)
+    'CEM': 2.5055,               # Membrane (Cation Exchange Membrane) (kg CO2-eq/m²)
+    'NF': 0.001586,                # Membrane (NanoFiltration) (kg CO2-eq/m²), 0.12 g/m2
+    'Current Collector': 0.8782, # Current Collector (Ti mesh) (kg CO2-eq/m²)
+    'Electrode': 0.52584, # Electrode (Carbon Cloth) (kg CO2-eq/m²)
+    'Fe(CN)': 0.3529,        # Fe(CN) (kg CO2-eq/m²) # 0.046875 g/cm2
+    'Frames': 98.5,           # Support Frames (Steel) (kg CO2-eq/m²)
+    'StainlessSteel': 48.0      # AC/DC 탱크에 사용되는 stainless steel (kg CO2-eq/kg), 8 kg/m3
 }
 
 # =============================================================================
 # # FEC Impact Factors (kg oil eq per unit)
 # =============================================================================
+# Need to find NF (Polyamide-based), Frames (steel), AC tank (Stainless Steel)
+# FEC_factors = {
+#     'electricity': 0.037857143,  # kg oil eq per MJ (1 kWh = 3.6 MJ)
+#     'CEM': 1.7775,          # kg oil eq per kg
+#     'NF': 0.818,          # kg oil eq per kg, 36 MJ/kg / 44 MJ/kg (oil) 
+#     'Electrode': 0.49897,        # kg oil eq per kg
+#     'Current Collector': 11.399, # kg oil eq per kg
+#     'Fe(CN)': 2.68771, # kg oil eq per kg
+#     'Frames': 0.455, # kg oil eq per kg, 20 MJ/kg / 44 MJ/kg (oil) 
+#     'StainlessSteel': 1.818  # AC/DC 탱크에 사용되는 stainless steel의 FEC (kg oil eq per kg), 80 MJ/kg / 44 MJ/kg (oil) 
+# }
 FEC_factors = {
-    'electricity': 0.037857143,  # kg oil eq per MJ
-    'NaCl': 0.073453,            # kg oil eq per kg
-    'Membrane': 1.7775,          # kg oil eq per kg
-    'Electrode': 0.49897,        # kg oil eq per kg
-    'Current Collector': 11.399, # kg oil eq per kg
+    'electricity': 0.1363,  # (kg oil-eq/kWh)
+    'CEM': 2.133,          # (kg oil-eq/m²)
+    'NF': 0.9816,          # (kg oil-eq/m²)
+    'Electrode': 0.0998,        # (kg oil-eq/m²)
+    'Current Collector': 0.22798, # (kg oil-eq/m²)
+    'Fe(CN)': 0.126, # (kg oil-eq/m²)
+    'Frames': 22.75, # (kg oil-eq/m²), 20 MJ/kg / 44 MJ/kg (oil), 0.455 kg oil/kg * 50 kg/m2 = 22.75 kg oil/m2
+    'StainlessSteel': 1.818  # (kg oil-eq/kg), AC/DC 탱크에 사용되는 stainless steel의 FEC, 80 MJ/kg / 44 MJ/kg (oil) 
 }
