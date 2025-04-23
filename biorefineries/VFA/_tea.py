@@ -84,6 +84,13 @@ class VFA_TEA(CellulosicEthanolTEA):
         # return self.installed_equipment_cost # 구매비용 + 설치비용
         return self.purchase_cost # 구매비용
     
+    @property
+    def annualized_CAPEX(self):
+        i = self.IRR
+        n = self.duration[1] - self.duration[0]
+        crf = (i * (1 + i)**n) / ((1 + i)**n - 1)
+        return self.CAPEX * crf
+    
     # OPEX에 Membrane/NF/Current Collector 교체 비용을 추가함, Electricity는 추가함
     # ED/AC Tank OPEX를 따로 구성을 하는거지 (Electricity + 교체비용)
     @property

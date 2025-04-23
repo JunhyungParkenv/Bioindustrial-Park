@@ -61,6 +61,9 @@ for cd in current_density_values:
     opex = tea.OPEX              # USD/yr
     mpsp = tea.solve_price(F.stored_vfa)  # USD/kg
     
+    # Annualized CAPEX 계산 추가
+    annualized_capex = tea.annualized_CAPEX  # USD/yr
+    
     # 최종 VFA의 농도 계산 (예: VFA 스트림의 질량/부피, 단위: kg/m³)
     # 단, F_vol 속성이 존재한다고 가정
     try:
@@ -79,6 +82,7 @@ for cd in current_density_values:
         "AC Tank HRT (hr)": F.T302.tau,
         "Final VFA Concentration (kg/m³)": vfa_conc,
         "CAPEX (USD)": capex,
+        "Annualized CAPEX (USD/yr)": annualized_capex,  # 추가된 부분
         "OPEX (USD/yr)": opex,
         "MPSP (USD/kg)": mpsp
     }
@@ -292,6 +296,7 @@ def create_model():
     metrics = [
         Metric('VFA Yield', lambda: F.stored_vfa.F_mass / F.feedstock.F_mass, 'kg/kg'),
         Metric('Electricity Consumption', lambda: sys.get_electricity_consumption(), 'kWh/yr'),
+        Metric('Annualized CAPEX', lambda: tea.annualized_CAPEX / 1e6, 'Million USD/yr'),
         Metric('Capital Investment (CAPEX)', lambda: tea.CAPEX / 1e6, 'Million USD'),
         Metric('Operating Cost (OPEX)', lambda: tea.OPEX / 1e6, 'Million USD/yr'),
         Metric('ED GWP', 
@@ -345,16 +350,16 @@ def create_model():
     def set_ED_j(x):
         F.S401.j = x
         
-    @model.parameter(name='ED Current',
-                      element=F.S401,
-                      kind='coupled',
-                      units='A',
-                      baseline=F.S401.j * F.S401.A_m,
-                      distribution=shape.Triangle(0.8 * F.S401.j * F.S401.A_m, 
-                                                  F.S401.j * F.S401.A_m, 
-                                                  1.2 * F.S401.j * F.S401.A_m))
-    def set_ED_I(x):
-        F.S401.j = x / F.S401.A_m
+    # @model.parameter(name='ED Current',
+    #                   element=F.S401,
+    #                   kind='coupled',
+    #                   units='A',
+    #                   baseline=F.S401.j * F.S401.A_m,
+    #                   distribution=shape.Triangle(0.8 * F.S401.j * F.S401.A_m, 
+    #                                               F.S401.j * F.S401.A_m, 
+    #                                               1.2 * F.S401.j * F.S401.A_m))
+    # def set_ED_I(x):
+    #     F.S401.j = x / F.S401.A_m
 
     # @model.parameter(name='AC Tank Residence Time',
     #                  element=F.T302,  # T302가 실제 AC 탱크 객체입니다.
@@ -365,18 +370,33 @@ def create_model():
     # def set_AC_tank_tau(x):
     #     F.T302.tau = x
     
-    # ────── 민감도 파라미터: ED Current Efficiency (CE) ──────
-    # F.S401 객체에 CE 속성이 없으면 기본값 1.0 (80% 효율)으로 설정
-    baseline_CE = getattr(F.S401, 'CE', 1.0)
+    # # ────── 민감도 파라미터: ED Current Efficiency (CE) ──────
+    # # F.S401 객체에 CE 속성이 없으면 기본값 1.0 (100% 효율)으로 설정
+    # baseline_CE = getattr(F.S401, 'CE', 0.604)
     
-    @model.parameter(name='ED Current Efficiency',
+    # @model.parameter(name='ED Current Efficiency',
+    #                  element=F.S401,
+    #                  kind='coupled',
+    #                  units='-',
+    #                  baseline=baseline_CE,
+    #                  distribution=shape.Triangle(0.8 * baseline_CE, baseline_CE, 1.2 * baseline_CE))
+    # def set_ED_CE(x):
+    #     F.S401.CE = x
+        
+    # 전체 CE 총합을 계산 (예: 0.604)
+    baseline_total_CE = sum(F.S401.CE_dict.values())
+    
+    @model.parameter(name='ED Total Current Efficiency',
                      element=F.S401,
                      kind='coupled',
                      units='-',
-                     baseline=baseline_CE,
-                     distribution=shape.Triangle(0.8 * baseline_CE, baseline_CE, 1.2 * baseline_CE))
-    def set_ED_CE(x):
-        F.S401.CE = x
+                     baseline=baseline_total_CE,
+                     distribution=shape.Triangle(0.8 * baseline_total_CE, baseline_total_CE, 1.2 * baseline_total_CE))
+    def set_ED_total_CE(x):
+        scaling_factor = x / baseline_total_CE
+        for key in F.S401.CE_dict:
+             F.S401.CE_dict[key] *= scaling_factor
+
         
     @model.parameter(name='AC Tank Residence Time',
                      element=F.T302,  # T302가 실제 AC 탱크 객체입니다.
@@ -589,7 +609,6 @@ if __name__ == '__main__':
     batch_cryst_opex_df = pd.DataFrame(list(batch_cryst_opex_millions.items()), columns=["Component", "OPEX (Million USD/yr)"])
     drum_dryer_capex_df = pd.DataFrame(list(drum_dryer_capex_millions.items()), columns=["Component", "CAPEX (Million USD)"])
     drum_dryer_opex_df = pd.DataFrame(list(drum_dryer_opex_millions.items()), columns=["Component", "OPEX (Million USD/yr)"])
-
 
     # Excel 파일로 저장 (여러 시트)
     with pd.ExcelWriter("breakdown_results.xlsx") as writer:
