@@ -16,7 +16,7 @@ from biorefineries.VFA._tea import create_vfa_tea
 from biorefineries.VFA._chemicals import chems
 from biorefineries.VFA._systems_VFA import VFA_sys, F
 
-# bst.PowerUtility.price = 0.07
+bst.PowerUtility.price = 0.07
 #%%
 # =============================================================================
 # System and TEA Initialization
