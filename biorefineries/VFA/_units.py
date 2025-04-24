@@ -252,10 +252,10 @@ class AC_Tank(MixTank):
 # Constants  
 F = 96485.3  # Faraday constant (C/mol)  
 
-@cost('Membrane area', 'CEM', cost=150 *2, S=1, CE=567.3, n=1, BM=1, lifetime=5) # Jayne
+@cost('Membrane area', 'CEM', cost=150, S=1, CE=567.3, n=1, BM=1, lifetime=5) # Jayne
 @cost('Membrane area', 'NF', cost=30, S=1, CE=567.3, n=1, BM=1, lifetime=5) # Wangsuk (diff NF)
-@cost('Membrane area', 'Current Collector', cost=20 * 3/4 *2, S=1, CE=567.3, n=1, BM=1, lifetime=10) # Nayeong, Ti mesh
-@cost('Membrane area', 'Electrode', cost=5 * 3/4 *2, S=1, CE=567.3, n=1, BM=1, lifetime=10) # Nayeong, Carbon Cloth
+@cost('Membrane area', 'Current Collector', cost=20 * 3/4, S=1, CE=567.3, n=1, BM=1, lifetime=10) # Nayeong, Ti mesh
+@cost('Membrane area', 'Electrode', cost=5 * 3/4, S=1, CE=567.3, n=1, BM=1, lifetime=10) # Nayeong, Carbon Cloth
 @cost('Membrane area', 'Frames', cost=2, S=1, CE=567.3, n=1, BM=1)
 @cost('Membrane area', 'Coating Solution', cost=0.057282, S=1, CE=567.3, n=1, BM=1)
 @cost('Membrane area', 'Fe(CN)', cost=0.00017625, S=1, CE=567.3, n=1, BM=1)

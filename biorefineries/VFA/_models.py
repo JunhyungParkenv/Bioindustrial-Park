@@ -15,8 +15,8 @@ from biorefineries.VFA._process_settings import price, GWP_CFs, FEC_factors, loa
 from biorefineries.VFA._tea import create_vfa_tea
 from biorefineries.VFA._chemicals import chems
 from biorefineries.VFA._systems_VFA import VFA_sys, F
-# 명시적으로 전기 요금을 0.07 USD/kWh로 설정
-bst.PowerUtility.price = 0.07
+
+# bst.PowerUtility.price = 0.07
 #%%
 # =============================================================================
 # System and TEA Initialization
