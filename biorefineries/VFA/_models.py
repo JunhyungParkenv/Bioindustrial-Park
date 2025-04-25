@@ -364,24 +364,25 @@ def create_model():
     #     F.S401.j = x / F.S401.A_m
 
     # @model.parameter(name='AC Tank Residence Time',
-    #                  element=F.T302,  # T302가 실제 AC 탱크 객체입니다.
-    #                  kind='coupled',
-    #                  units='hr',
-    #                  baseline=F.T302.tau,
-    #                  distribution=shape.Triangle(0.8 * F.T302.tau, F.T302.tau, 1.2 * F.T302.tau))
+    #                   element=F.T302,  # T302가 실제 AC 탱크 객체입니다.
+    #                   kind='coupled',
+    #                   units='hr',
+    #                   baseline=F.T302.tau,
+    #                   distribution=shape.Triangle(0.8 * F.T302.tau, F.T302.tau, 1.2 * F.T302.tau))
     # def set_AC_tank_tau(x):
     #     F.T302.tau = x
     
-    # # ────── 민감도 파라미터: ED Current Efficiency (CE) ──────
-    # # F.S401 객체에 CE 속성이 없으면 기본값 1.0 (100% 효율)으로 설정
+    # ────── 민감도 파라미터: ED Current Efficiency (CE) ──────
+    # 이거는 맞지 않음 (하나의 CE에 적용)
+    # F.S401 객체에 CE 속성이 없으면 기본값 1.0 (100% 효율)으로 설정
     # baseline_CE = getattr(F.S401, 'CE', 0.604)
     
     # @model.parameter(name='ED Current Efficiency',
-    #                  element=F.S401,
-    #                  kind='coupled',
-    #                  units='-',
-    #                  baseline=baseline_CE,
-    #                  distribution=shape.Triangle(0.8 * baseline_CE, baseline_CE, 1.2 * baseline_CE))
+    #                   element=F.S401,
+    #                   kind='coupled',
+    #                   units='-',
+    #                   baseline=baseline_CE,
+    #                   distribution=shape.Triangle(0.9 * baseline_CE, baseline_CE, 1.1 * baseline_CE))
     # def set_ED_CE(x):
     #     F.S401.CE = x
         
@@ -389,15 +390,15 @@ def create_model():
     baseline_total_CE = sum(F.S401.CE_dict.values())
     
     @model.parameter(name='ED Total Current Efficiency',
-                     element=F.S401,
-                     kind='coupled',
-                     units='-',
-                     baseline=baseline_total_CE,
-                     distribution=shape.Triangle(0.8 * baseline_total_CE, baseline_total_CE, 1.2 * baseline_total_CE))
+                      element=F.S401,
+                      kind='coupled',
+                      units='-',
+                      baseline=baseline_total_CE,
+                      distribution=shape.Triangle(0.9 * baseline_total_CE, baseline_total_CE, 1.1 * baseline_total_CE))
     def set_ED_total_CE(x):
         scaling_factor = x / baseline_total_CE
         for key in F.S401.CE_dict:
-             F.S401.CE_dict[key] *= scaling_factor
+              F.S401.CE_dict[key] *= scaling_factor
 
         
     @model.parameter(name='AC Tank Residence Time',
@@ -405,12 +406,50 @@ def create_model():
                      kind='coupled',
                      units='hr',
                      baseline=F.T302.tau,
-                     distribution=shape.Triangle(0.9 * (F.T302.tau if F.T302.tau > 1e-6 else 1e-6),
+                     distribution=shape.Triangle(0.8 * (F.T302.tau if F.T302.tau > 1e-6 else 1e-6),
                                                   (F.T302.tau if F.T302.tau > 1e-6 else 1e-6),
                                                   1.2 * (F.T302.tau if F.T302.tau > 1e-6 else 1e-6)))
     def set_AC_tank_tau(x):
         F.T302.tau = x
 
+    # baseline_yield = F.stored_vfa.F_mass / F.feedstock.F_mass
+
+    # @model.parameter(name='VFA Yield Adjustment',
+    #                  element=F.stored_vfa,
+    #                  kind='coupled',
+    #                  units='-',
+    #                  baseline=1.0,
+    #                  distribution=shape.Triangle(0.9, 1.0, 1.1))
+    # def set_vfa_yield_adjustment(x):
+    #     target_yield = baseline_yield * x
+    #     current_yield = F.stored_vfa.F_mass / F.feedstock.F_mass
+    #     adjustment_factor = target_yield / current_yield
+    #     F.stored_vfa.mass *= adjustment_factor
+    
+    # If need yield as uncertainty analysis
+    baseline_factor = 1.0
+
+    @model.parameter(name='ED Inlet VFA Concentration Factor',
+                      element=F.unit['T301'],
+                      kind='coupled',
+                      units='-',
+                      baseline=baseline_factor,
+                      distribution=shape.Triangle(0.9, 1.0, 1.1))
+    def set_ED_inlet_vfa_factor(x):
+        """간단히 ED inlet stream의 VFA 농도를 scaling 합니다."""
+        stream = F.unit['T301'].outs[0]
+        
+        # VFA 성분들만 일괄적으로 scaling
+        for chem in ['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid', 'LacticAcid']:
+            stream.imass[chem] *= (x / baseline_factor)
+        
+        # 변경 후 나머지 성분 (물) 질량 유지
+        stream.imass['Water'] = stream.F_mass - stream.imass['AceticAcid', 'PropionicAcid', 
+                                                              'ButyricAcid', 'ValericAcid', 'LacticAcid'].sum()
+        
+        # 시스템 업데이트
+        sys.reset_cache()
+        sys.empty_recycles()
     return model
 
 model = create_model()

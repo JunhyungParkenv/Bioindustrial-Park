@@ -19,7 +19,7 @@ This module is a modified implementation of modules from the following:
 from biorefineries.cornstover import CellulosicEthanolTEA
 import biosteam as bst
 import pandas as pd
-
+import numpy as np
 class VFA_TEA(CellulosicEthanolTEA):
     _TCI_ratio_cached = 1
     
@@ -84,13 +84,39 @@ class VFA_TEA(CellulosicEthanolTEA):
         # return self.installed_equipment_cost # 구매비용 + 설치비용
         return self.purchase_cost # 구매비용
     
+    # @property
+    # def annualized_CAPEX(self):
+    #     i = self.IRR
+    #     n = self.duration[1] - self.duration[0]
+    #     crf = (i * (1 + i)**n) / ((1 + i)**n - 1)
+    #     return self.CAPEX * crf
+    
     @property
     def annualized_CAPEX(self):
         i = self.IRR
         n = self.duration[1] - self.duration[0]
         crf = (i * (1 + i)**n) / ((1 + i)**n - 1)
-        return self.CAPEX * crf
     
+        # 기본 CAPEX에서 ED만 별도로 빼내기
+        CAPEX_ED = self.ED_CAPEX_breakdown['Total']  # ED 전체 CAPEX
+        CAPEX_other = self.CAPEX - CAPEX_ED
+    
+        # ED 교체주기 (예: 5년마다 교체)
+        ED_lifetime = getattr(self.system.flowsheet.unit['S401'], 'lifetime', 5)
+    
+        # ED의 교체 횟수 계산 (초기 설치 후의 교체 횟수)
+        replacement_times = np.arange(ED_lifetime, n, ED_lifetime)
+    
+        # ED 비용의 현가 계산 (초기 비용 + 교체 비용의 현가합)
+        PV_ED = CAPEX_ED  # 초기 비용 (Year 0)
+        for t in replacement_times:
+            PV_ED += CAPEX_ED / ((1 + i) ** t)
+    
+        # Annualized CAPEX 계산 (다른 항목 + ED 항목 현가)
+        annualized_CAPEX = (CAPEX_other + PV_ED) * crf
+    
+        return annualized_CAPEX
+
     # OPEX에 Membrane/NF/Current Collector 교체 비용을 추가함, Electricity는 추가함
     # ED/AC Tank OPEX를 따로 구성을 하는거지 (Electricity + 교체비용)
     @property
