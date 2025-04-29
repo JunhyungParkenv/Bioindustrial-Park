@@ -51,14 +51,8 @@ current_density_values = np.linspace(10, 500, 100)
 sweep_results = []
 
 for cd in current_density_values:
-    F.S401.fixed_A_m = True  # 반드시 False로 유지
     # 현재 전류 밀도 설정
     F.S401.j = cd
-    
-    # 올바른 코드
-    for spec in F.S401._specifications:
-        spec()
-    
     # 시스템 초기화 후 시뮬레이션
     sys.reset_cache()
     sys.empty_recycles()
@@ -301,10 +295,6 @@ def get_ED_FEC_breakdown(F, sys, FEC_factors, lifetime_years=5,
 # =============================================================================
 def create_model():
     # Metric 정의 (민감도 분석 결과에 포함할 최종 지표들)
-    # ✅ 시스템 모듈에서 최신 current density를 동적으로 읽어옴
-    baseline_j = F.S401.j
-    print(f"✅ Current Density baseline 설정: {baseline_j} A/m²")
-    
     metrics = [
         Metric('VFA Yield', lambda: F.stored_vfa.F_mass / F.feedstock.F_mass, 'kg/kg'),
         Metric('Electricity Consumption', lambda: sys.get_electricity_consumption(), 'kWh/yr'),
@@ -361,15 +351,7 @@ def create_model():
                      distribution=shape.Triangle(0.8 * F.S401.j, F.S401.j, 1.2 * F.S401.j))
     def set_ED_j(x):
         F.S401.j = x
-        F.S401.fixed_A_m = True  # 🚩 A_m 자동 업데이트 방지
         
-        # 올바른 코드
-        for spec in F.S401._specifications:
-            spec()
-        
-        # 변경 사항을 시스템에 확실히 반영
-        sys.reset_cache()
-        sys.empty_recycles()
     # @model.parameter(name='ED Current',
     #                   element=F.S401,
     #                   kind='coupled',
@@ -509,15 +491,7 @@ tea.__class__.ED_OPEX_breakdown = property(new_ED_OPEX_breakdown)
 # =============================================================================
 def model_specification():
     try:
-        # 🚩 핵심 코드: 모든 unit의 specification 강제 재실행
-        for unit in sys.units:
-            for spec in unit._specifications:
-                spec()
-        
-        sys.reset_cache()
-        sys.empty_recycles()
         sys.simulate()
-
     except Exception as e:
         print("Error during simulation:", e)
         sys.reset_cache()
@@ -525,9 +499,6 @@ def model_specification():
         sys.simulate()
 
 def run_model(N=1000, rule='L', notify_runs=10, model=model):
-    # ✅ 여기에 모델을 매번 새로 생성 (baseline 매번 업데이트됨)
-    model = create_model()
-    
     np.random.seed(1234)
     samples = model.sample(N, rule)
     model.load_samples(samples)

@@ -96,17 +96,14 @@ def create_VFA_sys(ins, outs):
         'S401',
         ins=(T301-0, T302-0),
         outs=('treated_dc', 'treated_ac'),
-        j=158.4848, # 12.5 (실험), 128.7879, 158.4848 (Model)
+        j=12.5, # 12.5 (실험), 128.7879, 158.4848 (Model)
         t=24*3600,
-        A_m=71495,  # 초기 멤브레인 면적, 이후 업데이트됨, 757000, 71495
+        A_m=1.0,  # 초기 멤브레인 면적, 이후 업데이트됨
         target_concentration=target_concentration
     )
     
     @S401.add_specification(run=True)
     def update_ed_parameters():
-        if hasattr(S401, 'fixed_A_m') and S401.fixed_A_m:
-            print("🔹 민감도 분석 중 A_m 업데이트 건너뜀.")
-            return
         """ED & AC Tank Update"""
         eff_ac = S401.outs[1]
         total_vfa_mass = eff_ac.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid', 'LacticAcid'].sum()  # kg/hr
