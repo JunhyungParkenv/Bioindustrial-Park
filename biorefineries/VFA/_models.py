@@ -51,8 +51,13 @@ current_density_values = np.linspace(10, 500, 100)
 sweep_results = []
 
 for cd in current_density_values:
+    F.S401.fixed_A_m = False  # 반드시 False로 유지
     # 현재 전류 밀도 설정
     F.S401.j = cd
+    
+    # 🚩 specification 함수 직접 실행
+    F.S401._specifications()  # 이 부분이 중요
+    
     # 시스템 초기화 후 시뮬레이션
     sys.reset_cache()
     sys.empty_recycles()
@@ -355,7 +360,11 @@ def create_model():
                      distribution=shape.Triangle(0.8 * F.S401.j, F.S401.j, 1.2 * F.S401.j))
     def set_ED_j(x):
         F.S401.j = x
-        F.S401.fixed_A_m = True  # 🚩 A_m 자동 업데이트 방지
+        F.S401.fixed_A_m = False  # 🚩 A_m 자동 업데이트 방지
+        
+        # 🚩 모델 시뮬레이션 시 강제 실행 (필수!)
+        F.S401._specifications()
+        
         # 변경 사항을 시스템에 확실히 반영
         sys.reset_cache()
         sys.empty_recycles()
