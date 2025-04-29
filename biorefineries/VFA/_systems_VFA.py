@@ -27,6 +27,7 @@ tmo.settings.set_thermo(chems)
 # ✅ **🔹 Global Variable for Target Concentration**
 # target_concentration = 2.694  # g/L # 0.898 (ED -> DC) * 3 -> 
 target_concentration = 15  # g/L # 0.898 (ED -> DC) * 3 -> / 14.05 g/L (F.T302.outs[0]), 1.42 g/L (F.S401.ins[0])
+bst.main_flowsheet.clear()       # ← 기존 flowsheet 완전 삭제
 # Flowsheet Initialization
 F = bst.Flowsheet('VFA_Recovery')
 bst.main_flowsheet.set_flowsheet(F)
@@ -102,6 +103,7 @@ def create_VFA_sys(ins, outs):
         target_concentration=target_concentration
     )
     S401.fixed_A_m = True  # 🚩 A_m 자동 업데이트 비활성화
+    S401._specifications = []
     # @S401.add_specification(run=True)
     # def update_ed_parameters():
     #     """ED & AC Tank Update"""
