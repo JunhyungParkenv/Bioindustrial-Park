@@ -97,17 +97,17 @@ class VFA_TEA(CellulosicEthanolTEA):
         n = self.duration[1] - self.duration[0]
         crf = (i * (1 + i)**n) / ((1 + i)**n - 1)
     
-        # 기본 CAPEX에서 ED만 별도로 빼내기
-        CAPEX_ED = self.ED_CAPEX_breakdown['Total']  # ED 전체 CAPEX
+        # 기존 CAPEX breakdown에서 ED CAPEX 전체 합을 계산
+        CAPEX_ED = sum(self.ED_CAPEX_breakdown.values())  # ED 전체 CAPEX 합산
         CAPEX_other = self.CAPEX - CAPEX_ED
     
-        # ED 교체주기 (예: 5년마다 교체)
+        # ED 교체주기 (5년마다 교체)
         ED_lifetime = getattr(self.system.flowsheet.unit['S401'], 'lifetime', 5)
     
-        # ED의 교체 횟수 계산 (초기 설치 후의 교체 횟수)
+        # ED 교체 시점
         replacement_times = np.arange(ED_lifetime, n, ED_lifetime)
     
-        # ED 비용의 현가 계산 (초기 비용 + 교체 비용의 현가합)
+        # ED 교체 비용의 현가 계산 (초기 설치 비용 + 교체비용 현가)
         PV_ED = CAPEX_ED  # 초기 비용 (Year 0)
         for t in replacement_times:
             PV_ED += CAPEX_ED / ((1 + i) ** t)
