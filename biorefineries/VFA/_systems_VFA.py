@@ -116,6 +116,10 @@ def create_VFA_sys(ins, outs):
         # ✅ Q decided by ED flow rate
         Q = eff_ac.F_vol  # m³/hr
         
+        if hasattr(S401, 'fixed_A_m') and S401.fixed_A_m:
+            print("🔹 민감도 분석 중 A_m 업데이트 건너뜀.")
+            return
+        
         # ✅ Updated Membrane Area (by Q)
         new_A_m = S401.calculate_membrane_area(total_vfa_mol, total_flux, Q)
         S401.A_m = new_A_m
