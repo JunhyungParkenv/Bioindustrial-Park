@@ -96,9 +96,9 @@ def create_VFA_sys(ins, outs):
         'S401',
         ins=(T301-0, T302-0),
         outs=('treated_dc', 'treated_ac'),
-        j=12.5, # 12.5 (실험), 128.7879, 158.4848 (Model)
+        j=158.4848, # 12.5 (실험), 128.7879, 158.4848 (Model)
         t=24*3600,
-        A_m=757000,  # 초기 멤브레인 면적, 이후 업데이트됨
+        A_m=71495,  # 초기 멤브레인 면적, 이후 업데이트됨, 757000, 71495
         target_concentration=target_concentration
     )
     
