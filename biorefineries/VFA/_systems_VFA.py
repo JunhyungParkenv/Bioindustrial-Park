@@ -101,30 +101,30 @@ def create_VFA_sys(ins, outs):
         A_m=1.0,  # 초기 멤브레인 면적, 이후 업데이트됨
         target_concentration=target_concentration
     )
-    
-    @S401.add_specification(run=True)
-    def update_ed_parameters():
-        """ED & AC Tank Update"""
-        eff_ac = S401.outs[1]
-        total_vfa_mass = eff_ac.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid', 'LacticAcid'].sum()  # kg/hr
-        total_vfa_mol = total_vfa_mass / 102.13  # kmol/hr (Valeric acid 60.05 g/mol)
+    S401.fixed_A_m = True  # 🚩 A_m 자동 업데이트 비활성화
+    # @S401.add_specification(run=True)
+    # def update_ed_parameters():
+    #     """ED & AC Tank Update"""
+    #     eff_ac = S401.outs[1]
+    #     total_vfa_mass = eff_ac.imass['AceticAcid', 'PropionicAcid', 'ButyricAcid', 'ValericAcid', 'LacticAcid'].sum()  # kg/hr
+    #     total_vfa_mol = total_vfa_mass / 102.13  # kmol/hr (Valeric acid 60.05 g/mol)
         
-        I = S401.j * S401.A_m  # 총 전류
-        flux_dict = S401.calculate_flux(I)
-        total_flux = sum(flux_dict.values())  # mol/(m2*s)
+    #     I = S401.j * S401.A_m  # 총 전류
+    #     flux_dict = S401.calculate_flux(I)
+    #     total_flux = sum(flux_dict.values())  # mol/(m2*s)
     
-        # ✅ Q decided by ED flow rate
-        Q = eff_ac.F_vol  # m³/hr
+    #     # ✅ Q decided by ED flow rate
+    #     Q = eff_ac.F_vol  # m³/hr
         
-        # ✅ Updated Membrane Area (by Q)
-        new_A_m = S401.calculate_membrane_area(total_vfa_mol, total_flux, Q)
-        S401.A_m = new_A_m
-        print(f"🔹 Updated ED Membrane Area: {S401.A_m:.4f} m²")
+    #     # ✅ Updated Membrane Area (by Q)
+    #     new_A_m = S401.calculate_membrane_area(total_vfa_mol, total_flux, Q)
+    #     S401.A_m = new_A_m
+    #     print(f"🔹 Updated ED Membrane Area: {S401.A_m:.4f} m²")
 
-        # 🔹 Update tau of AC Tank
-        update_ac_tau_based_on_target_concentration()
-        # 🔹 Update tau of DC Tank (간단한 조정 함수 적용)
-        update_dc_tau()
+    #     # 🔹 Update tau of AC Tank
+    #     update_ac_tau_based_on_target_concentration()
+    #     # 🔹 Update tau of DC Tank (간단한 조정 함수 적용)
+    #     update_dc_tau()
 
     # Method 3
     def update_ac_tau_based_on_target_concentration():

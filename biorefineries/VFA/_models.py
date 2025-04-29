@@ -489,15 +489,19 @@ tea.__class__.ED_OPEX_breakdown = property(new_ED_OPEX_breakdown)
 # =============================================================================
 # Model Specification and Simulation
 # =============================================================================
+# def model_specification():
+#     try:
+#         sys.simulate()
+#     except Exception as e:
+#         print("Error during simulation:", e)
+#         sys.reset_cache()
+#         sys.empty_recycles()
+#         sys.simulate()
 def model_specification():
-    try:
-        sys.simulate()
-    except Exception as e:
-        print("Error during simulation:", e)
-        sys.reset_cache()
-        sys.empty_recycles()
-        sys.simulate()
-
+    sys.reset_cache()
+    sys.empty_recycles()
+    # (선택) F.S401.fixed_A_m = True  # 한 번 더 확실히 고정
+    sys.simulate()
 def run_model(N=1000, rule='L', notify_runs=10, model=model):
     np.random.seed(1234)
     samples = model.sample(N, rule)
