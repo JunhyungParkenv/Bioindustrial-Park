@@ -26,7 +26,11 @@ load_preferences_and_process_settings()  # Flow 단위를 'kg/hr'로 설정
 sys = VFA_sys
 tea = create_vfa_tea(sys)
 sys.operating_hours = tea.operating_days * 24
-
+# ——— 여기서 A_m 고정 & 업데이트 스펙 제거 ———
+F.S401.fixed_A_m = True
+F.S401._specifications = []
+# 원하는 초기 면적이 있다면
+F.S401.A_m = 71495.31   #  (예: 실험 조건에서 구한 값)
 # 모든 스트림을 모읍니다.
 all_streams = list(set(sys.feeds + sys.products))
 for unit in sys.units:
