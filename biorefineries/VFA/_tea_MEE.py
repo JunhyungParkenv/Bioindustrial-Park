@@ -57,9 +57,15 @@ class VFA_TEA_MEE(CellulosicEthanolTEA):
     @property
     def MEE_CAPEX_breakdown(self):
         """CAPEX breakdown for the MEE unit (ID='E401')."""
+        # mee = next((u for u in self.system.units if u.ID == 'E401'), None)
+        # if mee is None or not hasattr(mee, 'baseline_purchase_costs'):
+        #     return {}
+        # return mee.baseline_purchase_costs
         mee = next((u for u in self.system.units if u.ID == 'E401'), None)
         if mee is None or not hasattr(mee, 'baseline_purchase_costs'):
             return {}
+        # P를 바꾼 뒤에 다시 summary(=design+cost) 실행 → baseline_purchase_costs 갱신
+        mee._summary()
         return mee.baseline_purchase_costs
 
     @property

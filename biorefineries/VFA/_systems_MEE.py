@@ -48,21 +48,36 @@ class MEEWithTarget(MultiEffectEvaporator):
                 1 - conc_in / self.target_concentration))
             self._reload_components = True
 
+    # def _design(self):
+    #     # ① 먼저 부모 디자인을 수행
+    #     super()._design()
+    #     # ② 그 결과로 나온 'Volume' 을 vacuum_system 에 전달, 전기 구동 펌프로 재생성
+    #     vol = self.design_results.get('Volume')
+    #     # P_suction 은 마지막 농축액 스트림의 압력
+    #     P_suc = self.outs[0].P
+    #     # 전기펌프(예: Liquid-ring pump)로 강제 설정
+    #     self.vacuum_system = VacuumSystem(
+    #         self, 
+    #         'Liquid-ring pump',
+    #         vessel_volume=vol,
+    #         P_suction=P_suc
+    #     )
     def _design(self):
-        # ① 먼저 부모 디자인을 수행
+        # ① 부모 설계 수행
         super()._design()
-        # ② 그 결과로 나온 'Volume' 을 vacuum_system 에 전달, 전기 구동 펌프로 재생성
+        # ② 면적이 너무 작거나 음수면 cost correlation이 깨지니 최소값으로 clamp
+        A = self.design_results.get('Area', 0.0)
+        A_min = 13.94 * 0.0929  # 13.94 ft² → m² 환산
+        if A < A_min:
+            self.design_results['Area'] = A_min
+        # ③ 진공펌프 설계 (원래 로직)
         vol = self.design_results.get('Volume')
-        # P_suction 은 마지막 농축액 스트림의 압력
         P_suc = self.outs[0].P
-        # 전기펌프(예: Liquid-ring pump)로 강제 설정
         self.vacuum_system = VacuumSystem(
-            self, 
-            'Liquid-ring pump',
+            self, 'Liquid-ring pump',
             vessel_volume=vol,
             P_suction=P_suc
         )
-            
 load_preferences_and_process_settings()  # Flow 단위를 'kg/hr'로 설정
 
 # Thermodynamic properties
