@@ -116,7 +116,7 @@ def create_MEE_sys(ins, outs):
         ins=U302-1,
         outs=('mee_concentrate', 'evaporator_steam'),
         P=(101325, 73581, 50892, 32777),
-        V_definition='Overall',
+        V_definition='First-effect',
         target_concentration=target_concentration,
         vfa_IDs=vfa_IDs
     )
