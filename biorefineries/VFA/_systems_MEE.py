@@ -79,7 +79,7 @@ bst.main_flowsheet.set_flowsheet(F)
 # %% System Definition
 # 시스템 정의
 @SystemFactory(
-    ID='VFA_sys',
+    ID='MEE_sys',
     ins=[dict(ID='feedstock',      units='kg/hr')],
     outs=[
         dict(ID='stored_vfa',     units='kg/hr'),

@@ -16,14 +16,14 @@ from biosteam.evaluation import Model, Metric
 from biorefineries.VFA._process_settings import load_preferences_and_process_settings
 
 # 절대 임포트로 변경
-from biorefineries.VFA._tea_mee import create_vfa_tea_mee  
-from biorefineries.VFA._systems_VFA import VFA_sys, F
+from biorefineries.VFA._tea_MEE import create_vfa_tea_mee  
+from biorefineries.VFA._systems_MEE import MEE_sys, F
 
 #%% ---------------------------------------------------------------------------
 # System and TEA Initialization
 #----------------------------------------------------------------------------
 load_preferences_and_process_settings()
-sys = VFA_sys
+sys = MEE_sys
 tea = create_vfa_tea_mee(sys)
 sys.operating_hours = tea.operating_days * 24
 
@@ -43,8 +43,8 @@ for n_effects in effects_options:
     
     sweep_results.append({
         'Effects': n_effects,
-        'CAPEX (USD)': tea.CAPEX,
-        'OPEX (USD/yr)': tea.OPEX,
+        'CAPEX (Million USD)': tea.CAPEX   / 1e6,       # ← 여기서 1e6 으로 나눕니다
+        'OPEX (Million USD/yr)': tea.OPEX / 1e6,       # ← 마찬가지로
         'MPSP (USD/kg)': tea.solve_price(F.stored_vfa)
     })
 
