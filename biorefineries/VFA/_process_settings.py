@@ -139,7 +139,7 @@ GWP_CFs = {
     'Electrode': 0.52584, # Electrode (Carbon Cloth) (kg CO2-eq/m²)
     'Fe(CN)': 0.3529,        # Fe(CN) (kg CO2-eq/m²) # 0.046875 g/cm2
     'Frames': 98.5,           # Support Frames (Steel) (kg CO2-eq/m²)
-    'StainlessSteel': 48.0      # AC/DC 탱크에 사용되는 stainless steel (kg CO2-eq/kg), 8 kg/m3
+    'StainlessSteel': 48.0      # AC/DC tank stainless steel (kg CO2-eq/kg), 8 kg/m3
 }
 
 # =============================================================================
@@ -154,7 +154,7 @@ GWP_CFs = {
 #     'Current Collector': 11.399, # kg oil eq per kg
 #     'Fe(CN)': 2.68771, # kg oil eq per kg
 #     'Frames': 0.455, # kg oil eq per kg, 20 MJ/kg / 44 MJ/kg (oil) 
-#     'StainlessSteel': 1.818  # AC/DC 탱크에 사용되는 stainless steel의 FEC (kg oil eq per kg), 80 MJ/kg / 44 MJ/kg (oil) 
+#     'StainlessSteel': 1.818  # AC/DC tank stainless steel FEC (kg oil eq per kg), 80 MJ/kg / 44 MJ/kg (oil) 
 # }
 FEC_factors = {
     'electricity': 0.1363,  # (kg oil-eq/kWh)
@@ -164,5 +164,5 @@ FEC_factors = {
     'Current Collector': 0.22798, # (kg oil-eq/m²)
     'Fe(CN)': 0.126, # (kg oil-eq/m²)
     'Frames': 22.75, # (kg oil-eq/m²), 20 MJ/kg / 44 MJ/kg (oil), 0.455 kg oil/kg * 50 kg/m2 = 22.75 kg oil/m2
-    'StainlessSteel': 1.818  # (kg oil-eq/kg), AC/DC 탱크에 사용되는 stainless steel의 FEC, 80 MJ/kg / 44 MJ/kg (oil) 
+    'StainlessSteel': 1.818  # (kg oil-eq/kg), # AC/DC tank stainless steel FEC, 80 MJ/kg / 44 MJ/kg (oil) 
 }

@@ -18,7 +18,51 @@ from biorefineries.VFA._process_settings import load_preferences_and_process_set
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+bst.process_tools.default() 
+# ─── MEEWithTarget 클래스 정의 ───────────────────────────────────────────────
+from biosteam.units import MultiEffectEvaporator
+from biosteam.units.vacuum_system import VacuumSystem
+MultiEffectEvaporator.vacuum_system_preference = 'Liquid-ring pump'
+class MEEWithTarget(MultiEffectEvaporator):
+    # 더 이상 클래스 속성 패치는 필요 없습니다
+    def __init__(self, ID='', ins=None, outs=(), *,
+                 P=(101325, 73581, 50892, 32777),
+                 V_definition='Overall',
+                 target_concentration=None,
+                 vfa_IDs=None,
+                 **kwargs):
+        super().__init__(ID=ID, ins=ins, outs=outs,
+                         P=P, V=0.0, V_definition=V_definition, **kwargs)
+        if target_concentration is None or vfa_IDs is None:
+            raise ValueError("target_concentration와 vfa_IDs 모두 필요합니다.")
+        self.target_concentration = target_concentration
+        self.vfa_IDs = vfa_IDs
 
+        @self.add_specification(run=True)
+        def _set_V_from_target():
+            feed = self.ins[0]
+            total_vfa_mass = sum(feed.imass[id] for id in self.vfa_IDs)
+            Q = feed.F_vol
+            conc_in = total_vfa_mass * 1e3 / (Q * 1e3)
+            self.V = max(0.0, min(1.0,
+                1 - conc_in / self.target_concentration))
+            self._reload_components = True
+
+    def _design(self):
+        # ① 먼저 부모 디자인을 수행
+        super()._design()
+        # ② 그 결과로 나온 'Volume' 을 vacuum_system 에 전달, 전기 구동 펌프로 재생성
+        vol = self.design_results.get('Volume')
+        # P_suction 은 마지막 농축액 스트림의 압력
+        P_suc = self.outs[0].P
+        # 전기펌프(예: Liquid-ring pump)로 강제 설정
+        self.vacuum_system = VacuumSystem(
+            self, 
+            'Liquid-ring pump',
+            vessel_volume=vol,
+            P_suction=P_suc
+        )
+            
 load_preferences_and_process_settings()  # Flow 단위를 'kg/hr'로 설정
 
 # Thermodynamic properties
@@ -27,6 +71,7 @@ tmo.settings.set_thermo(chems)
 # ✅ **🔹 Global Variable for Target Concentration**
 # target_concentration = 2.694  # g/L # 0.898 (ED -> DC) * 3 -> 
 target_concentration = 15  # g/L # 0.898 (ED -> DC) * 3 -> / 14.05 g/L (F.T302.outs[0]), 1.42 g/L (F.S401.ins[0])
+vfa_IDs = ['AceticAcid','PropionicAcid','ButyricAcid','ValericAcid']
 bst.main_flowsheet.clear()       # ← 기존 flowsheet 완전 삭제
 # Flowsheet Initialization
 F = bst.Flowsheet('VFA_Recovery')
@@ -66,12 +111,14 @@ def create_MEE_sys(ins, outs):
     )
 
     # 4) MEE: 전체 VFA 용액 농축
-    E401 = bst.units.MultiEffectEvaporator(
+    E401 = MEEWithTarget(
         'E401',
-        ins=U302-1,          # vfa_filtered
+        ins=U302-1,
         outs=('mee_concentrate', 'evaporator_steam'),
-        P=(101325, 73581, 50892, 32777),  # 압력 단계 (예시)
-        V=0.5                             # 농축 인자 (예시)
+        P=(101325, 73581, 50892, 32777),
+        V_definition='Overall',
+        target_concentration=target_concentration,
+        vfa_IDs=vfa_IDs
     )
 
     # 5) Crystallization (Batch)
@@ -101,7 +148,6 @@ def create_MEE_sys(ins, outs):
         outs=stored_vfa,     # 시스템 최종 출력
         tau=7 * 24           # 7일 [hr]
     )
-
 #%%
 # MEE System
 MEE_sys = create_MEE_sys()  
@@ -112,7 +158,5 @@ MEE_sys.show()
 #%%
 mee_unit = F.unit['E401']
 print("--- MEE Unit Design Results ---")
-print("단계 수:", mee_unit.number_of_effects)
-print("디자인 리절트 키들:", mee_unit.design_results.keys())
-if 'Steam duty' in mee_unit.design_results:
-    print(f"Steam duty: {mee_unit.design_results['Steam duty']:.3f} kg/hr")
+# P 튜플 길이로 단계 수를 구함
+print("단계 수 (effects):", len(mee_unit.P))

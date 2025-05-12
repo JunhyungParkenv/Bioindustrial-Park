@@ -194,6 +194,8 @@ def get_ED_GWP_breakdown(F, sys, GWP_CFs, lifetime_years=5):
         lifetime_hours_tanks = 20 * 365 * 24
         stainless_mass_per_hr = stainless_mass / lifetime_hours_tanks
         breakdown['StainlessSteel'] = stainless_mass_per_hr * GWP_CFs.get('StainlessSteel', 0.0)
+    # (1) ED 전기 GWP 추가
+    breakdown['Electricity'] = calculate_ED_electricity_GWP(F, GWP_CFs, sys)
     return breakdown
 
 #%%
@@ -235,7 +237,7 @@ def calculate_equipment_FEC(F, FEC_factors, lifetime_years=5,
 
 def calculate_ED_electricity_FEC(F, FEC_factors, sys):
     ed_consumption = F.S401.power_utility.consumption  # kW = kWh/hr
-    consumption_MJ = ed_consumption * 3.6  # MJ/hr
+    consumption_MJ = ed_consumption  # MJ/hr
     return consumption_MJ * FEC_factors['electricity']
 
 def calculate_total_FEC(sys, all_streams, F, FEC_factors, lifetime_years=10, 
@@ -291,6 +293,8 @@ def get_ED_FEC_breakdown(F, sys, FEC_factors, lifetime_years=5,
         lifetime_hours_tanks = 20 * 365 * 24
         stainless_mass_per_hr = stainless_mass / lifetime_hours_tanks
         breakdown['StainlessSteel'] = stainless_mass_per_hr * FEC_factors.get('StainlessSteel', 0.0)
+    # (2) ED 전기 FEC 추가
+    breakdown['Electricity'] = calculate_ED_electricity_FEC(F, FEC_factors, sys)
     return breakdown
 
 #%%
