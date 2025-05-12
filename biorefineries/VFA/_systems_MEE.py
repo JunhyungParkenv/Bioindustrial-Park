@@ -38,16 +38,28 @@ class MEEWithTarget(MultiEffectEvaporator):
         self.target_concentration = target_concentration
         self.vfa_IDs = vfa_IDs
 
+        # @self.add_specification(run=True)
+        # def _set_V_from_target():
+        #     feed = self.ins[0]
+        #     total_vfa_mass = sum(feed.imass[id] for id in self.vfa_IDs)
+        #     Q = feed.F_vol
+        #     conc_in = total_vfa_mass * 1e3 / (Q * 1e3)
+        #     self.V = max(0.0, min(1.0,
+        #         1 - conc_in / self.target_concentration))
+        #     self._reload_components = True
+        
         @self.add_specification(run=True)
         def _set_V_from_target():
+            """목표 농도에 맞춰 V를 설정하되, 0 이하가 되면 아주 작은 값(eps)으로 클램프."""
             feed = self.ins[0]
             total_vfa_mass = sum(feed.imass[id] for id in self.vfa_IDs)
             Q = feed.F_vol
             conc_in = total_vfa_mass * 1e3 / (Q * 1e3)
-            self.V = max(0.0, min(1.0,
-                1 - conc_in / self.target_concentration))
+            raw = 1 - conc_in / self.target_concentration
+            eps = 1e-6
+            # raw가 너무 작거나 음수가 되면 eps로, 1보다 크면 1로 클램프
+            self.V = min(1.0, max(eps, raw))
             self._reload_components = True
-
     # def _design(self):
     #     # ① 먼저 부모 디자인을 수행
     #     super()._design()
