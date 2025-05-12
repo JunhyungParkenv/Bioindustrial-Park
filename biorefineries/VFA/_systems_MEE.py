@@ -37,6 +37,29 @@ class MEEWithTarget(MultiEffectEvaporator):
             raise ValueError("target_concentration와 vfa_IDs 모두 필요합니다.")
         self.target_concentration = target_concentration
         self.vfa_IDs = vfa_IDs
+        
+        @self.add_specification(run=True)
+        def _set_V_from_target():
+            # 목표 농도에 맞춰 V 설정하되 0~1 사이, 0 은 eps 로
+            feed = self.ins[0]
+            total_vfa = sum(feed.imass[i] for i in self.vfa_IDs)
+            Q = feed.F_vol or 1e-9
+            raw = 1 - (total_vfa * 1e3) / (Q * 1e3 * self.target_concentration)
+            eps = 1e-6
+            self.V = min(1 - eps, max(eps, raw))
+            self._reload_components = True
+
+    def _design(self):
+        """부모 설계에서 log 에러가 나면 면적을 최소 eps 로 강제."""
+        eps = 1e-6
+        # V 가 너무 작거나 1 과 같아지면 선형 이상으로
+        self.V = min(1 - eps, max(eps, getattr(self, 'V', eps)))
+        try:
+            super()._design()
+        except FloatingPointError:
+            # 설계 면적이 음수가 나오면 최소 eps 로
+            self.design_results['Area'] = eps
+            # Duty 등도 nan 이 되지만, 설계가 멈추진 않습니다.
 
         # @self.add_specification(run=True)
         # def _set_V_from_target():
@@ -48,18 +71,18 @@ class MEEWithTarget(MultiEffectEvaporator):
         #         1 - conc_in / self.target_concentration))
         #     self._reload_components = True
         
-        @self.add_specification(run=True)
-        def _set_V_from_target():
-            """목표 농도에 맞춰 V를 설정하되, 0 이하가 되면 아주 작은 값(eps)으로 클램프."""
-            feed = self.ins[0]
-            total_vfa_mass = sum(feed.imass[id] for id in self.vfa_IDs)
-            Q = feed.F_vol
-            conc_in = total_vfa_mass * 1e3 / (Q * 1e3)
-            raw = 1 - conc_in / self.target_concentration
-            eps = 1e-6
-            # raw가 너무 작거나 음수가 되면 eps로, 1보다 크면 1로 클램프
-            self.V = min(1.0, max(eps, raw))
-            self._reload_components = True
+        # @self.add_specification(run=True)
+        # def _set_V_from_target():
+        #     """목표 농도에 맞춰 V를 설정하되, 0 이하가 되면 아주 작은 값(eps)으로 클램프."""
+        #     feed = self.ins[0]
+        #     total_vfa_mass = sum(feed.imass[id] for id in self.vfa_IDs)
+        #     Q = feed.F_vol
+        #     conc_in = total_vfa_mass * 1e3 / (Q * 1e3)
+        #     raw = 1 - conc_in / self.target_concentration
+        #     eps = 1e-6
+        #     # raw가 너무 작거나 음수가 되면 eps로, 1보다 크면 1로 클램프
+        #     self.V = min(1.0, max(eps, raw))
+        #     self._reload_components = True
     # def _design(self):
     #     # ① 먼저 부모 디자인을 수행
     #     super()._design()
@@ -74,22 +97,22 @@ class MEEWithTarget(MultiEffectEvaporator):
     #         vessel_volume=vol,
     #         P_suction=P_suc
     #     )
-    def _design(self):
-        # ① 부모 설계 수행
-        super()._design()
-        # ② 면적이 너무 작거나 음수면 cost correlation이 깨지니 최소값으로 clamp
-        A = self.design_results.get('Area', 0.0)
-        A_min = 13.94 * 0.0929  # 13.94 ft² → m² 환산
-        if A < A_min:
-            self.design_results['Area'] = A_min
-        # ③ 진공펌프 설계 (원래 로직)
-        vol = self.design_results.get('Volume')
-        P_suc = self.outs[0].P
-        self.vacuum_system = VacuumSystem(
-            self, 'Liquid-ring pump',
-            vessel_volume=vol,
-            P_suction=P_suc
-        )
+    # def _design(self):
+    #     # ① 부모 설계 수행
+    #     super()._design()
+    #     # ② 면적이 너무 작거나 음수면 cost correlation이 깨지니 최소값으로 clamp
+    #     A = self.design_results.get('Area', 0.0)
+    #     A_min = 13.94 * 0.0929  # 13.94 ft² → m² 환산
+    #     if A < A_min:
+    #         self.design_results['Area'] = A_min
+    #     # ③ 진공펌프 설계 (원래 로직)
+    #     vol = self.design_results.get('Volume')
+    #     P_suc = self.outs[0].P
+    #     self.vacuum_system = VacuumSystem(
+    #         self, 'Liquid-ring pump',
+    #         vessel_volume=vol,
+    #         P_suction=P_suc
+    #     )
 load_preferences_and_process_settings()  # Flow 단위를 'kg/hr'로 설정
 
 # Thermodynamic properties

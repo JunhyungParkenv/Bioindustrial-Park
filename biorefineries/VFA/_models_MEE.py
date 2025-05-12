@@ -18,6 +18,7 @@ from biorefineries.VFA._process_settings import load_preferences_and_process_set
 # 절대 임포트로 변경
 from biorefineries.VFA._tea_MEE import create_vfa_tea_mee  
 from biorefineries.VFA._systems_MEE import MEE_sys, F
+np.seterr(all='ignore')
 #%% ---------------------------------------------------------------------------
 # System and TEA Initialization
 #----------------------------------------------------------------------------
@@ -43,9 +44,11 @@ effects_options = [len(P) for P in [
 ]]
 sweep_results = []
 for n_effects in effects_options:
-    # Update MEE pressure stages
     F.unit['E401'].P = F.unit['E401'].P[:n_effects]
     sys.reset_cache(); sys.empty_recycles(); sys.simulate()
+    # TEA 내부 캐시 무효화
+    if hasattr(tea, '_purchase_cost'):
+        del tea._purchase_cost
     
     # 기본 OPEX + 5년 수명 replacement
     base_opex = tea.OPEX
