@@ -14,7 +14,9 @@ from chaospy import distributions as shape
 import biosteam as bst
 from biosteam.evaluation import Model, Metric
 from biorefineries.VFA._process_settings import load_preferences_and_process_settings
-
+import thermosteam as tmo
+from biorefineries.VFA._chemicals import chems
+tmo.settings.set_thermo(chems)
 # 절대 임포트로 변경
 from biorefineries.VFA._tea_MEE import create_vfa_tea_mee  
 from biorefineries.VFA._systems_MEE import MEE_sys, F

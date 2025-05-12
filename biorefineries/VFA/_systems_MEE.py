@@ -5,6 +5,9 @@ Created on Thu Nov 21 21:30:14 2024
 @author: Junhyung Park
 """
 # %% Setup
+import thermosteam as tmo
+from biorefineries.VFA._chemicals import chems
+tmo.settings.set_thermo(chems)
 import biosteam as bst
 import thermosteam as tmo
 from biosteam import Stream, SystemFactory
